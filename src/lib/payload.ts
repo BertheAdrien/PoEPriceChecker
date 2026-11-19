@@ -1,6 +1,7 @@
 import { DEFAULT_ENGINE_CONFIG, findOpportunities, type Opportunity, type SkipReason } from "./engine";
 import { buildPriceIndex, buildTradeUrl } from "./prices";
 import { loadRecipes } from "./recipes";
+import { buildOpportunityLinks, type TradeLink } from "./trade/links";
 
 /** Données sérialisables passées aux composants client. */
 export interface DashboardPayload {
@@ -16,6 +17,8 @@ export interface DashboardPayload {
   vendors: Record<string, string>;
   /** nom d'item -> lien trade (items du trade classique uniquement). */
   trade: Record<string, string>;
+  /** id d'opportunité -> liens trade filtrés (mêmes filtres que la vérification). */
+  tradeLinks: Record<string, TradeLink[]>;
 }
 
 export async function buildPayload(): Promise<DashboardPayload> {
@@ -25,7 +28,9 @@ export async function buildPayload(): Promise<DashboardPayload> {
   const vendors: Record<string, string> = {};
   for (const r of recipes) if (r.vendor) vendors[r.id] = r.vendor;
   const trade: Record<string, string> = {};
+  const tradeLinks: Record<string, TradeLink[]> = {};
   for (const o of res.opportunities) {
+    tradeLinks[o.id] = buildOpportunityLinks(o, prices.league, (n) => prices.get(n));
     for (const i of [...o.inputs, ...o.outputs]) {
       const e = prices.get(i.item);
       const url = e && buildTradeUrl(prices.league, e);
@@ -43,5 +48,6 @@ export async function buildPayload(): Promise<DashboardPayload> {
     chainSkipped: res.chainSkipped,
     vendors,
     trade,
+    tradeLinks,
   };
 }

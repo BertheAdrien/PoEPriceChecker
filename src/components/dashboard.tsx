@@ -7,6 +7,8 @@ import type { DashboardPayload } from "@/lib/payload";
 import { OpportunityDetail } from "./opportunity-detail";
 import { AUTO_VERIFY_COUNT, isVerifiable, useTradeVerification } from "./verify";
 import { fmt, fmtProfit } from "./format";
+import { compareRows, nextSort, type SortDir, type SortKey } from "./sort";
+import { isOverestimated } from "@/lib/trade/effective";
 
 const KIND_LABELS: Record<OpportunityKind, string> = {
   vendor_shop: "Boutique PNJ",
@@ -33,6 +35,40 @@ function Badge({ cls, children }: { cls: string; children: React.ReactNode }) {
   return <span className={`ml-2 rounded px-1.5 py-0.5 text-[10px] font-medium ${cls}`}>{children}</span>;
 }
 
+function SortTh({
+  k,
+  label,
+  sort,
+  setSort,
+  right,
+}: {
+  k: SortKey;
+  label: string;
+  sort: { key: SortKey; dir: SortDir };
+  setSort: (s: { key: SortKey; dir: SortDir }) => void;
+  right?: boolean;
+}) {
+  const active = sort.key === k;
+  return (
+    <th
+      className={`cursor-pointer select-none px-3 py-2 hover:text-zinc-200 ${right ? "text-right" : ""} ${active ? "text-amber-300" : ""}`}
+      onClick={() => setSort(nextSort(sort, k))}
+      aria-sort={active ? (sort.dir === "desc" ? "descending" : "ascending") : "none"}
+    >
+      {label}
+      {active && (sort.dir === "desc" ? " ▼" : " ▲")}
+    </th>
+  );
+}
+
+function Loading() {
+  return (
+    <span className="ml-1 text-[10px] font-normal text-zinc-500" title="Vérification trade en cours">
+      …
+    </span>
+  );
+}
+
 function liqText(o: Opportunity): string {
   const l = o.liquidity;
   return (
@@ -54,6 +90,7 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
   const [showConditional, setShowConditional] = useState(false);
   const [budget, setBudget] = useState("");
   const [unit, setUnit] = useState<"c" | "div">("c");
+  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: "margin", dir: "desc" });
   const [selected, setSelected] = useState<string | null>(null);
 
   const budgetChaos = useMemo(() => {
@@ -62,7 +99,8 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
     return unit === "div" ? n * divineChaos : n;
   }, [budget, unit, divineChaos]);
 
-  const rows = useMemo(() => {
+  // Ensemble filtré, trié par marge poe.ninja : stable pendant les vérifications (sert aux autoIds).
+  const ninjaRows = useMemo(() => {
     const mm = parseFloat(minMargin) || 0;
     const ml = parseFloat(minLiq) || 0;
     const mp = parseFloat(minProfit) || 0;
@@ -86,10 +124,30 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
   }, [payload.opportunities, kind, minMargin, minLiq, minProfit, showConditional, budgetChaos]);
 
   const autoIds = useMemo(
-    () => rows.filter((r) => isVerifiable(r.o, payload)).slice(0, AUTO_VERIFY_COUNT).map((r) => r.o.id),
-    [rows, payload],
+    () => ninjaRows.filter((r) => isVerifiable(r.o, payload)).slice(0, AUTO_VERIFY_COUNT).map((r) => r.o.id),
+    [ninjaRows, payload],
   );
   const { states: verif, verify } = useTradeVerification(autoIds);
+
+  // Même ensemble, tri par marge effective (vérifiée si disponible) ; plan de budget sur l'effectif.
+  const rows = useMemo(() => {
+    return ninjaRows
+      .map((r) => {
+        const v = verif[r.o.id];
+        const vr = v?.status === "done" && v.result.verified ? v.result.opportunity : undefined;
+        const eff = vr ?? r.o;
+        const plan = vr && budgetChaos !== undefined ? planBudget(vr, budgetChaos) : r.plan;
+        return { o: r.o, plan, vr, eff, loading: v?.status === "loading" };
+      })
+      .sort(compareRows(sort.key, sort.dir));
+  }, [ninjaRows, verif, budgetChaos, sort]);
+
+  const openAll = (id: string, links: { url: string }[]) => {
+    let blocked = false;
+    for (const l of links) if (!window.open(l.url, "_blank")) blocked = true;
+    // Pop-ups bloquées : le panneau de détail liste les liens à cliquer un par un.
+    if (blocked) setSelected(id);
+  };
 
   const selectedRow = selected ? rows.find((r) => r.o.id === selected) : undefined;
   const kinds = useMemo(() => [...new Set(payload.opportunities.map((o) => o.kind))], [payload.opportunities]);
@@ -168,30 +226,41 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
         <table className="w-full min-w-[60rem] text-left text-sm">
           <thead className="bg-zinc-900 text-xs uppercase text-zinc-400">
             <tr>
-              <th className="px-3 py-2 text-right">Marge</th>
-              <th className="px-3 py-2 text-right">Profit</th>
-              <th className="px-3 py-2 text-right">Coût</th>
+              <SortTh k="margin" label="Marge" sort={sort} setSort={setSort} right />
+              <SortTh k="profit" label="Profit" sort={sort} setSort={setSort} right />
+              <SortTh k="cost" label="Coût" sort={sort} setSort={setSort} right />
               <th className="px-3 py-2">Type</th>
               <th className="px-3 py-2">Opportunité</th>
-              <th className="px-3 py-2 text-right">Liquidité</th>
-              <th className="px-3 py-2 text-right">7 j</th>
-              <th className="px-3 py-2 text-right">Trade</th>
+              <SortTh k="liquidity" label="Liquidité" sort={sort} setSort={setSort} right />
+              <SortTh k="trend" label="7 j" sort={sort} setSort={setSort} right />
+              <th className="px-3 py-2">Liens trade</th>
               {budgetChaos !== undefined && <th className="px-3 py-2 text-right">Runs</th>}
-              {budgetChaos !== undefined && <th className="px-3 py-2 text-right">Profit total</th>}
+              {budgetChaos !== undefined && <SortTh k="total" label="Profit total" sort={sort} setSort={setSort} right />}
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ o, plan }) => {
-              const v = verif[o.id];
-              const vr = v?.status === "done" && v.result.verified ? v.result.opportunity : undefined;
+            {rows.map(({ o, plan, vr, eff, loading }) => {
+              const links = payload.tradeLinks[o.id] ?? [];
               return (
               <tr
                 key={o.id}
                 onClick={() => setSelected(o.id === selected ? null : o.id)}
                 className={`cursor-pointer border-t border-zinc-800 hover:bg-zinc-800/60 ${o.id === selected ? "bg-zinc-800/80" : ""}`}
               >
-                <td className="px-3 py-2 text-right font-semibold text-emerald-400">+{fmt(o.marginPct)}%</td>
-                <td className="whitespace-nowrap px-3 py-2 text-right">{fmtProfit(o.profitChaos, divineChaos)}</td>
+                <td className="px-3 py-2 text-right">
+                  <div className={`font-semibold ${eff.marginPct > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    {eff.marginPct > 0 ? "+" : ""}
+                    {fmt(eff.marginPct)}%{loading && <Loading />}
+                  </div>
+                  {vr && <div className="text-[10px] font-normal text-zinc-500">ninja +{fmt(o.marginPct)}%</div>}
+                </td>
+                <td className="whitespace-nowrap px-3 py-2 text-right">
+                  <div>
+                    {fmtProfit(eff.profitChaos, divineChaos)}
+                    {loading && <Loading />}
+                  </div>
+                  {vr && <div className="text-[10px] text-zinc-500">ninja {fmtProfit(o.profitChaos, divineChaos)}</div>}
+                </td>
                 <td className="whitespace-nowrap px-3 py-2 text-right">{fmt(o.costChaos)}c</td>
                 <td className="whitespace-nowrap px-3 py-2 text-zinc-400">{KIND_LABELS[o.kind]}</td>
                 <td className="px-3 py-2">
@@ -199,16 +268,37 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
                   {o.conditional && <Badge cls="bg-amber-500/20 text-amber-300">conditionnel</Badge>}
                   {o.unverified && <Badge cls="bg-sky-500/20 text-sky-300">[?] non vérifié</Badge>}
                   {vr && vr.profitChaos <= 0 && <Badge cls="bg-red-500/20 text-red-300">faux positif</Badge>}
+                  {isOverestimated(o, vr) && <Badge cls="bg-orange-500/20 text-orange-300">surestimé</Badge>}
                 </td>
                 <td className="whitespace-nowrap px-3 py-2 text-right text-zinc-400">{liqText(o)}</td>
                 <td className={`px-3 py-2 text-right ${(o.trendPct ?? 0) < 0 ? "text-red-400" : "text-zinc-300"}`}>
                   {o.trendPct === undefined ? "–" : `${o.trendPct > 0 ? "+" : ""}${fmt(o.trendPct)}%`}
                 </td>
-                <td
-                  className={`whitespace-nowrap px-3 py-2 text-right font-semibold ${vr ? (vr.marginPct > 0 ? "text-emerald-400" : "text-red-400") : "text-zinc-500"}`}
-                  title={v?.status === "error" ? v.message : undefined}
-                >
-                  {v?.status === "loading" ? "…" : v?.status === "error" ? "!" : vr ? `${vr.marginPct > 0 ? "+" : ""}${fmt(vr.marginPct)}%` : "—"}
+                <td className="px-3 py-2">
+                  {links.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                      {links.map((l) => (
+                        <a
+                          key={`${l.role}-${l.item}`}
+                          href={l.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          title={l.label}
+                          className="max-w-[11rem] truncate rounded border border-zinc-700 px-1.5 py-0.5 text-[11px] text-amber-400 hover:bg-zinc-800"
+                        >
+                          {l.label} ↗
+                        </a>
+                      ))}
+                      {links.length > 1 && (
+                        <button
+                          onClick={() => openAll(o.id, links)}
+                          className="rounded border border-amber-500/60 px-1.5 py-0.5 text-[11px] text-amber-300 hover:bg-zinc-800"
+                        >
+                          Ouvrir tout
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </td>
                 {plan && <td className="px-3 py-2 text-right">{plan.runs}</td>}
                 {plan && (
@@ -237,6 +327,7 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
           budgetMode={selectedRow.plan !== undefined}
           payload={payload}
           verification={verif[selectedRow.o.id]}
+          links={payload.tradeLinks[selectedRow.o.id] ?? []}
           verifiable={isVerifiable(selectedRow.o, payload)}
           onVerify={() => verify(selectedRow.o.id)}
           onClose={() => setSelected(null)}

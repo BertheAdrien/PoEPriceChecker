@@ -1,5 +1,6 @@
 import type { Opportunity, PricedItem } from "@/lib/engine/types";
 import type { DashboardPayload } from "@/lib/payload";
+import type { TradeLink } from "@/lib/trade/links";
 import type { VerifiedItem, VerifyResult } from "@/lib/trade/types";
 import { fmt, fmtProfit } from "./format";
 import type { VerifyState } from "./verify";
@@ -21,8 +22,8 @@ function where(o: Opportunity, vendors: Record<string, string>): string {
   }
 }
 
-function ItemName({ i, trade }: { i: PricedItem; trade: Record<string, string> }) {
-  const url = trade[i.item];
+function ItemName({ i, links, role }: { i: PricedItem; links: TradeLink[]; role: "input" | "output" }) {
+  const url = links.find((l) => l.role === role && l.item === i.item)?.url;
   return url ? (
     <a href={url} target="_blank" rel="noreferrer" className="text-amber-400 underline">
       {i.item} ↗
@@ -44,6 +45,7 @@ export function OpportunityDetail({
   payload,
   verification,
   verifiable,
+  links,
   onVerify,
   onClose,
 }: {
@@ -53,6 +55,7 @@ export function OpportunityDetail({
   payload: DashboardPayload;
   verification?: VerifyState;
   verifiable: boolean;
+  links: TradeLink[];
   onVerify: () => void;
   onClose: () => void;
 }) {
@@ -85,8 +88,8 @@ export function OpportunityDetail({
             {o.inputs.map((i) => (
               <tr key={i.item} className="border-t border-zinc-800">
                 <td className="px-2 py-1">
-                  <ItemName i={i} trade={payload.trade} />
-                  {payload.trade[i.item] && (
+                  <ItemName i={i} links={links} role="input" />
+                  {links.some((l) => l.role === "input" && l.item === i.item) && (
                     <span className="ml-2 text-[10px] text-zinc-500">
                       {o.corruptedInputs === "allowed" ? "corrompu OK" : "non corrompu requis"}
                     </span>
@@ -111,7 +114,7 @@ export function OpportunityDetail({
           <tbody>
             {o.outputs.map((i) => (
               <tr key={i.item} className="border-t border-zinc-800">
-                <td className="px-2 py-1"><ItemName i={i} trade={payload.trade} /></td>
+                <td className="px-2 py-1"><ItemName i={i} links={links} role="output" /></td>
                 <td className="px-2 py-1">{i.qty * runs}</td>
                 <td className="px-2 py-1">{fmt(i.unitChaos)}c</td>
                 <td className="px-2 py-1"><Threshold value={i.minSellChaos} bad={unprofitable} /></td>
