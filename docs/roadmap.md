@@ -55,11 +55,11 @@ Cocher au fur et à mesure. Une étape = une session courte (`/clear` entre deux
       choisis sur les prix ninja pour éviter une cascade de vérifications)
 - [ ] Recettes vendeur d'uniques dont l'acceptation des corrompus est inconnue (Lost Unity, Magna Eclipsis, Arborix, Goddess Scorned) :
       à tester en jeu ; Kingmaker/Duskdawn sont classées `other` alors que ce sont des recettes vendeur (classification wiki à affiner)
-- [ ] Avertissement de build Turbopack sur les lectures `fs` de `recipes/load.ts` (à régler avec le Dockerfile : inclure `data/` dans l'image)
+- [x] Avertissements Turbopack (lectures `fs`) : `/*turbopackIgnore: true*/`, `data/` copié explicitement dans l'image
 
 ## Étape 5 — Déploiement
-- [ ] Infos VPS à demander à l'utilisateur : Docker présent ? reverse proxy (nginx / Caddy / Traefik) ? nom de domaine ?
-- [ ] Dockerfile (`output: "standalone"`), docker compose, reverse proxy (Caddy/nginx) sur le VPS
+- [x] https://poe-price-checker.bertadrien.fr : Dockerfile (`output: "standalone"`), docker-compose, nginx de l'hôte + certbot,
+      mot de passe basic auth (cf. `docs/deploy.md`)
 - [ ] GitHub Actions : tests + build de l'image à chaque push
 
 ## Étape 6 — Alertes (fin de V1)

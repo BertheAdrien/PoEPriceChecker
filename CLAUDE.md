@@ -6,7 +6,7 @@ fragments), revendre B. Les prix poe.ninja servent à **repérer**, le trade off
 
 ## Stack
 Next.js 16 (App Router, `cacheComponents`) + React 19 + TypeScript + Tailwind 4 · zod · Vitest · tsx.
-Docker sur un VPS (à venir) · repo GitHub public `BertheAdrien/PoEPriceChecker`. Pas de base de données, pas d'historique.
+Docker sur un VPS (https://poe-price-checker.bertadrien.fr) · repo GitHub public `BertheAdrien/PoEPriceChecker`. Pas de base de données, pas d'historique.
 
 ## Structure
 - `src/lib/ninja/` — client poe.ninja (zod, retry 429) · `src/lib/prices/` — `buildPriceIndex()` (cache mémoire 15 min, cache disque pour le CLI)
@@ -42,6 +42,7 @@ Docker sur un VPS (à venir) · repo GitHub public `BertheAdrien/PoEPriceChecker
 ## Docs (à lire seulement si besoin)
 - `docs/roadmap.md` — **état d'avancement et points ouverts** (lire en début de session)
 - `docs/data-sources.md` — endpoints poe.ninja / wiki Cargo / trade / GGG, forme des réponses, pièges
+- `docs/deploy.md` — VPS, mise à jour, mot de passe
 - `docs/game-economy.md` — mécaniques économiques et pièges d'arbitrage
 
 Code et identifiants en anglais, docs et échanges en français.
