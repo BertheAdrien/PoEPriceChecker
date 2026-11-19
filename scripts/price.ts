@@ -30,8 +30,11 @@ async function main() {
     process.exitCode = 1;
     return;
   }
-  const idx = await buildPriceIndex();
+  const idx = await buildPriceIndex(undefined, { diskCache: true });
   console.log(`# ${idx.league} | 1 div = ${fmtNum(idx.divineChaos)}c | ${idx.fetchedAt.toISOString()}`);
+  if (idx.failedCategories.length > 0) {
+    console.log(`# catégories indisponibles : ${idx.failedCategories.join(", ")}`);
+  }
   const q = query.toLowerCase();
   const partial = () => [...idx.entries.values()].filter((e) => e.name.toLowerCase().includes(q));
   const exact = search ? undefined : idx.get(query);

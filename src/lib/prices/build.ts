@@ -1,5 +1,10 @@
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { z } from "zod";
 import {
+  exchangeOverviewSchema,
   getCurrentLeague,
+  itemOverviewSchema,
   getExchangeOverview,
   getItemOverview,
   type NinjaOptions,
@@ -26,6 +31,10 @@ export interface BuildOptions extends NinjaOptions {
   /** Ignorer le cache mémoire. */
   noCache?: boolean;
   now?: () => Date;
+  /** Cache disque des réponses brutes par catégorie (CLI uniquement, pas l'appli web). */
+  diskCache?: boolean;
+  /** Dossier du cache disque (défaut `.cache/ninja`). */
+  cacheDir?: string;
 }
 
 const TTL_MS = 15 * 60 * 1000;
@@ -48,6 +57,38 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R
   return out;
 }
 
+const DEFAULT_CACHE_DIR = join(".cache", "ninja");
+
+/** Lit/écrit un JSON `{ at, data }` sur disque ; revalide avec le schéma zod à la lecture. */
+async function withDiskCache<S extends z.ZodType>(
+  file: string,
+  schema: S,
+  opts: BuildOptions,
+  nowMs: number,
+  fetcher: () => Promise<z.infer<S>>,
+): Promise<z.infer<S>> {
+  if (!opts.diskCache) return fetcher();
+  try {
+    const raw = JSON.parse(readFileSync(file, "utf8")) as { at?: unknown; data?: unknown };
+    if (typeof raw.at === "number" && nowMs - raw.at >= 0 && nowMs - raw.at < TTL_MS) {
+      const parsed = schema.safeParse(raw.data);
+      if (parsed.success) return parsed.data;
+    }
+  } catch {
+    // absent ou illisible : on refetch
+  }
+  const data = await fetcher();
+  try {
+    mkdirSync(join(file, ".."), { recursive: true });
+    writeFileSync(file, JSON.stringify({ at: nowMs, data }));
+  } catch {
+    // cache best-effort
+  }
+  return data;
+}
+
+const safeName = (s: string) => s.replace(/[^\w.-]/g, "_");
+
 const POECDN = "https://web.poecdn.com";
 const absIcon = (s?: string | null) => (s ? (s.startsWith("/") ? POECDN + s : s) : undefined);
 const opt = <T>(v: T | null | undefined) => v ?? undefined;
@@ -56,23 +97,54 @@ export async function buildPriceIndex(
   league?: string,
   opts: BuildOptions = {},
 ): Promise<PriceIndex> {
-  const lg = league ?? (await getCurrentLeague(opts));
+  const now = opts.now ?? (() => new Date());
+  const baseDir = opts.cacheDir ?? DEFAULT_CACHE_DIR;
+  const lg =
+    league ??
+    (await withDiskCache(
+      join(baseDir, "_league.json"),
+      z.string(),
+      opts,
+      now().getTime(),
+      () => getCurrentLeague(opts),
+    ));
+  const dir = join(baseDir, safeName(lg));
   const exTypes = opts.exchangeTypes ?? EXCHANGE_TYPES;
   const stTypes = opts.stashTypes ?? STASH_TYPES;
   const key = `${lg}|${exTypes.join(",")}|${stTypes.join(",")}`;
-  const now = opts.now ?? (() => new Date());
   const hit = cache.get(key);
   if (!opts.noCache && hit && now().getTime() - hit.at < TTL_MS) return hit.index;
 
   const conc = Math.max(1, opts.concurrency ?? 2);
-  const exchange = await mapLimit(exTypes, conc, async (t) => ({
+  const failedCategories: string[] = [];
+  const nowMs = now().getTime();
+  const settle = async <T>(label: string, mandatory: boolean, p: () => Promise<T>) => {
+    try {
+      return await p();
+    } catch (err) {
+      if (mandatory) throw err;
+      failedCategories.push(label);
+      return undefined;
+    }
+  };
+  const exchangeAll = await mapLimit(exTypes, conc, async (t) => ({
     t,
-    o: await getExchangeOverview(lg, t, opts),
+    o: await settle(`exchange:${t}`, t === "Currency", () =>
+      withDiskCache(join(dir, `exchange-${safeName(t)}.json`), exchangeOverviewSchema, opts, nowMs, () =>
+        getExchangeOverview(lg, t, opts),
+      ),
+    ),
   }));
-  const stash = await mapLimit(stTypes, conc, async (t) => ({
+  const stashAll = await mapLimit(stTypes, conc, async (t) => ({
     t,
-    o: await getItemOverview(lg, t, opts),
+    o: await settle(`stash:${t}`, false, () =>
+      withDiskCache(join(dir, `stash-${safeName(t)}.json`), itemOverviewSchema, opts, nowMs, () =>
+        getItemOverview(lg, t, opts),
+      ),
+    ),
   }));
+  const exchange = exchangeAll.flatMap(({ t, o }) => (o ? [{ t, o }] : []));
+  const stash = stashAll.flatMap(({ t, o }) => (o ? [{ t, o }] : []));
 
   const entries = new Map<string, PriceEntry>();
   let divineChaos = 0;
@@ -135,6 +207,7 @@ export async function buildPriceIndex(
     league: lg,
     fetchedAt: now(),
     divineChaos,
+    failedCategories,
     entries,
     get: (name) => entries.get(name) ?? lower.get(name.toLowerCase()),
   };

@@ -42,3 +42,6 @@ next-env.d.ts
 
 # claude code (local)
 .claude/settings.local.json
+
+# cache disque poe.ninja (CLI)
+/.cache/

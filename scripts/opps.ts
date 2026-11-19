@@ -35,7 +35,7 @@ async function main() {
   const minMargin = arg(args, "--min-margin");
   const withConditional = args.includes("--conditional");
 
-  const prices = await buildPriceIndex();
+  const prices = await buildPriceIndex(undefined, { diskCache: true });
   const res = findOpportunities(prices, loadRecipes(), DEFAULT_ENGINE_CONFIG);
 
   let list = res.opportunities;
@@ -63,6 +63,9 @@ async function main() {
   console.log(
     `# ${prices.league} | 1 div = ${fmt(prices.divineChaos)}c | ${list.length} opps | skips: ${s.missing_price} sans prix, ${s.illiquid} illiquides | chaînes: ${c.missing_price} sans prix, ${c.illiquid} illiquides | marge sécu ${DEFAULT_ENGINE_CONFIG.safetyMargin * 100}%`,
   );
+  if (prices.failedCategories.length > 0) {
+    console.log(`# catégories indisponibles : ${prices.failedCategories.join(", ")}`);
+  }
 }
 
 main().catch((err) => {

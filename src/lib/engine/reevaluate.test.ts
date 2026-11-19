@@ -8,7 +8,7 @@ function idx(rows: Array<[string, number]>): PriceIndex {
   for (const [name, chaos] of rows) {
     entries.set(name, { name, chaos, liquidity: 50, liquidityKind: "listings", source: "stash", category: "UniqueJewel" });
   }
-  return { league: "Test", fetchedAt: new Date(0), divineChaos: 200, entries, get: (n) => entries.get(n) };
+  return { league: "Test", fetchedAt: new Date(0), divineChaos: 200, failedCategories: [], entries, get: (n) => entries.get(n) };
 }
 
 const recipe: Recipe = {

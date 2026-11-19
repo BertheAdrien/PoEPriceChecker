@@ -111,6 +111,11 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
           Ignorés : {s.missing_price} sans prix, {s.illiquid} illiquides · chaînes : {c.missing_price} sans prix,{" "}
           {c.illiquid} illiquides
         </span>
+        {payload.failedCategories.length > 0 && (
+          <span className="basis-full text-xs text-amber-400">
+            Catégories indisponibles : {payload.failedCategories.join(", ")}
+          </span>
+        )}
       </header>
 
       <section className="grid grid-cols-2 gap-3 rounded-lg border border-zinc-800 bg-zinc-900/60 p-4 sm:grid-cols-4 lg:grid-cols-7">

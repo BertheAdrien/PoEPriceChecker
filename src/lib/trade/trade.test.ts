@@ -13,7 +13,7 @@ const e = (over: Partial<PriceEntry> & { name: string }): PriceEntry => ({
 
 function idx(entries: PriceEntry[], divineChaos = 200): PriceIndex {
   const m = new Map(entries.map((x) => [x.name, x]));
-  return { league: "Covens", fetchedAt: new Date(0), divineChaos, entries: m, get: (n) => m.get(n) };
+  return { league: "Covens", fetchedAt: new Date(0), divineChaos, failedCategories: [], entries: m, get: (n) => m.get(n) };
 }
 
 describe("buildTradeQuery", () => {

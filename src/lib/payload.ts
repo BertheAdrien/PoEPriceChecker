@@ -7,6 +7,7 @@ export interface DashboardPayload {
   league: string;
   fetchedAt: string;
   divineChaos: number;
+  failedCategories: string[];
   safetyMarginPct: number;
   opportunities: Opportunity[];
   skipped: Record<SkipReason, number>;
@@ -35,6 +36,7 @@ export async function buildPayload(): Promise<DashboardPayload> {
     league: prices.league,
     fetchedAt: prices.fetchedAt.toISOString(),
     divineChaos: prices.divineChaos,
+    failedCategories: prices.failedCategories,
     safetyMarginPct: DEFAULT_ENGINE_CONFIG.safetyMargin * 100,
     opportunities: res.opportunities,
     skipped: res.skipped,

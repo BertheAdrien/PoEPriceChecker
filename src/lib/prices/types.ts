@@ -17,6 +17,8 @@ export interface PriceIndex {
   fetchedAt: Date;
   /** Prix d'un Divine Orb en chaos. */
   divineChaos: number;
+  /** Catégories poe.ninja indisponibles (ignorées), ex. "stash:SkillGem". */
+  failedCategories: string[];
   entries: Map<string, PriceEntry>;
   /** Recherche exacte, insensible à la casse. */
   get(name: string): PriceEntry | undefined;

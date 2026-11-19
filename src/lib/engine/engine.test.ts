@@ -26,6 +26,7 @@ function idx(
     league: "Test",
     fetchedAt: new Date(0),
     divineChaos,
+    failedCategories: [],
     entries,
     get: (n) => entries.get(n) ?? lower.get(n.toLowerCase()),
   };

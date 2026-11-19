@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { getCurrentLeague, getExchangeOverview, getItemOverview, type FetchLike } from "../ninja";
 import { buildPriceIndex, clearPriceCache } from "./build";
@@ -51,7 +52,99 @@ describe("ninja client", () => {
   });
   it("throws on HTTP error", async () => {
     const bad: FetchLike = async () => ({ ok: false, status: 503, json: async () => ({}) });
-    await expect(getCurrentLeague({ fetch: bad })).rejects.toThrow(/503/);
+    await expect(getCurrentLeague({ fetch: bad, sleep: async () => {} })).rejects.toThrow(/503/);
+  });
+});
+
+describe("retry", () => {
+  it("retries on 429 honouring Retry-After, then succeeds", async () => {
+    let n = 0;
+    const sleeps: number[] = [];
+    const f: FetchLike = async () => {
+      n++;
+      if (n === 1)
+        return { ok: false, status: 429, headers: { get: () => "7" }, json: async () => ({}) };
+      if (n === 2) return { ok: false, status: 503, json: async () => ({}) };
+      return { ok: true, status: 200, json: async () => fx("leagues.json") };
+    };
+    const lg = await getCurrentLeague({ fetch: f, sleep: async (ms) => void sleeps.push(ms) });
+    expect(lg).toBe("Covens");
+    expect(n).toBe(3);
+    expect(sleeps).toEqual([7000, 15000]);
+  });
+  it("gives up after 2 retries", async () => {
+    let n = 0;
+    const f: FetchLike = async () => {
+      n++;
+      return { ok: false, status: 429, json: async () => ({}) };
+    };
+    await expect(getCurrentLeague({ fetch: f, sleep: async () => {} })).rejects.toThrow(/429/);
+    expect(n).toBe(3);
+  });
+  it("does not retry on 404", async () => {
+    let n = 0;
+    const f: FetchLike = async () => {
+      n++;
+      return { ok: false, status: 404, json: async () => ({}) };
+    };
+    await expect(getCurrentLeague({ fetch: f, sleep: async () => {} })).rejects.toThrow(/404/);
+    expect(n).toBe(1);
+  });
+});
+
+describe("failed categories", () => {
+  const failing = (bad: string): FetchLike => async (url, init) =>
+    url.includes(`type=${bad}`)
+      ? { ok: false, status: 500, json: async () => ({}) }
+      : mockFetch(url, init);
+  const o = (bad: string) => ({ ...opts, fetch: failing(bad), sleep: async () => {} });
+  it("skips a failed category and lists it", async () => {
+    const idx = await buildPriceIndex("Covens", o("Map"));
+    expect(idx.failedCategories).toEqual(["stash:Map"]);
+    expect(idx.get("Divine Orb")).toBeDefined();
+    const ok = await buildPriceIndex("Covens", { ...opts, noCache: true });
+    expect(ok.failedCategories).toEqual([]);
+  });
+  it("throws when Currency fails", async () => {
+    await expect(buildPriceIndex("Covens", o("Currency"))).rejects.toThrow(/500/);
+  });
+});
+
+describe("disk cache", () => {
+  let dir: string;
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "ninja-cache-"));
+  });
+  const dopts = (t: number) => ({
+    ...opts,
+    diskCache: true,
+    cacheDir: dir,
+    noCache: true,
+    now: () => new Date(t),
+  });
+  it("misses, then hits, then expires", async () => {
+    try {
+      await buildPriceIndex(undefined, dopts(0));
+      const n = calls.length;
+      expect(n).toBeGreaterThan(0);
+      expect(existsSync(join(dir, "Covens", "exchange-Currency.json"))).toBe(true);
+      expect(existsSync(join(dir, "Covens", "stash-Map.json"))).toBe(true);
+      const idx = await buildPriceIndex(undefined, dopts(14 * 60_000));
+      expect(calls.length).toBe(n);
+      expect(idx.get("Original Sin")!.chaos).toBe(73440);
+      await buildPriceIndex(undefined, dopts(16 * 60_000));
+      expect(calls.length).toBe(n * 2);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+  it("is off by default", async () => {
+    try {
+      await buildPriceIndex("Covens", { ...opts, cacheDir: dir });
+      expect(existsSync(join(dir, "Covens"))).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 
