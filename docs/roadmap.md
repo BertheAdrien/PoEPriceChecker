@@ -48,9 +48,11 @@ Cocher au fur et à mesure. Une étape = une session courte (`/clear` entre deux
 - [x] Corruption : entrées **non corrompues exigées par défaut** ; exceptions sourcées dans `data/recipe-overrides.yaml`
 
 ## Étape 4 bis — Corrections en cours (à traiter avant le déploiement)
-- [ ] **Filtres signalés « cassés » par l'utilisateur** (2026-11-19) — symptôme pas encore décrit : lui demander lequel / ce qu'il observe.
-      Piste : « Liquidité min » mélange deux unités (volume en chaos pour l'exchange, nb d'annonces pour le stash) → séparer en deux filtres.
-- [ ] Mode budget : le masquage « trop cher » et le filtre profit total utilisent encore les prix ninja (pas les prix trade vérifiés)
+- [x] **Filtres cassés** (« profit total min » ne marchait pas) : il filtrait sur un profit total invisible hors mode budget
+      (0,17c/run × 14 000 runs de liquidité passait 1000c). Colonnes Runs / Profit total toujours affichées ; filtres extraits
+      dans `src/components/filters.ts` (testés) ; « Liquidité min » séparée en « Volume min (c) » et « Annonces min »
+- [x] Mode budget, marge min et profit total min appliqués aux prix trade **vérifiés** quand disponibles (les autoIds restent
+      choisis sur les prix ninja pour éviter une cascade de vérifications)
 - [ ] Recettes vendeur d'uniques dont l'acceptation des corrompus est inconnue (Lost Unity, Magna Eclipsis, Arborix, Goddess Scorned) :
       à tester en jeu ; Kingmaker/Duskdawn sont classées `other` alors que ce sont des recettes vendeur (classification wiki à affiner)
 - [ ] Avertissement de build Turbopack sur les lectures `fs` de `recipes/load.ts` (à régler avec le Dockerfile : inclure `data/` dans l'image)

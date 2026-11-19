@@ -1,13 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { liquidityRunCap, planBudget } from "@/lib/engine/budget";
 import type { Opportunity, OpportunityKind } from "@/lib/engine/types";
 import type { DashboardPayload } from "@/lib/payload";
 import { OpportunityDetail } from "./opportunity-detail";
 import { TradeLinksModal } from "./trade-links-modal";
 import { AUTO_VERIFY_COUNT, isVerifiable, useTradeVerification } from "./verify";
 import { fmt, fmtProfit } from "./format";
+import { num, passesPrice, passesStatic, planFor, type Filters } from "./filters";
 import { compareRows, nextSort, type SortDir, type SortKey } from "./sort";
 import { isOverestimated } from "@/lib/trade/effective";
 
@@ -89,7 +89,8 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
   const { divineChaos } = payload;
   const [kind, setKind] = useState<string>("all");
   const [minMargin, setMinMargin] = useState("0");
-  const [minLiq, setMinLiq] = useState("0");
+  const [minVolume, setMinVolume] = useState("0");
+  const [minListings, setMinListings] = useState("0");
   const [minProfit, setMinProfit] = useState("5");
   const [showConditional, setShowConditional] = useState(false);
   const [budget, setBudget] = useState("");
@@ -98,53 +99,56 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
   const [selected, setSelected] = useState<string | null>(null);
 
   const budgetChaos = useMemo(() => {
-    const n = parseFloat(budget.replace(",", "."));
+    const n = num(budget);
     if (!(n > 0)) return undefined;
     return unit === "div" ? n * divineChaos : n;
   }, [budget, unit, divineChaos]);
 
-  // Ensemble filtré, trié par marge poe.ninja : stable pendant les vérifications (sert aux autoIds).
-  const ninjaRows = useMemo(() => {
-    const mm = parseFloat(minMargin) || 0;
-    const ml = parseFloat(minLiq) || 0;
-    const mp = parseFloat(minProfit) || 0;
-    return payload.opportunities
-      .filter((o) => showConditional || !o.conditional)
-      .filter((o) => kind === "all" || o.kind === kind)
-      .filter((o) => o.marginPct >= mm)
-      .filter((o) => {
-        const l = o.liquidity;
-        return (
-          (l.minVolumeChaos === undefined || l.minVolumeChaos >= ml) &&
-          (l.minListings === undefined || l.minListings >= ml)
-        );
-      })
-      .map((o) => ({ o, plan: budgetChaos !== undefined ? planBudget(o, budgetChaos) : undefined }))
-      .filter((r) => !r.plan || r.plan.affordable)
-      // Profit total réalisable : avec budget = runs du plan ; sans budget = runs plafonnés par la liquidité.
-      // (Un filtre par run masquait toute la currency bon marché, ex. 4 Fusing → 1 Scouring = 0,16c/run.)
-      .filter(({ o, plan }) => (plan ? plan.totalProfitChaos : o.profitChaos * liquidityRunCap(o)) >= mp)
-      .sort((a, b) => b.o.marginPct - a.o.marginPct);
-  }, [payload.opportunities, kind, minMargin, minLiq, minProfit, showConditional, budgetChaos]);
+  const filters: Filters = useMemo(
+    () => ({
+      kind,
+      showConditional,
+      minMarginPct: num(minMargin),
+      minTotalProfit: num(minProfit),
+      minVolumeChaos: num(minVolume),
+      minListings: num(minListings),
+      budgetChaos,
+    }),
+    [kind, showConditional, minMargin, minProfit, minVolume, minListings, budgetChaos],
+  );
+
+  // Candidats filtrés sur les prix poe.ninja, triés par marge ninja : stable pendant les vérifications
+  // (sert à choisir les autoIds sans effet de cascade quand une vérification masque une ligne).
+  const ninjaRows = useMemo(
+    () =>
+      payload.opportunities
+        .filter((o) => passesStatic(o, filters))
+        .filter((o) => passesPrice(o, planFor(o, filters.budgetChaos), filters))
+        .sort((a, b) => b.marginPct - a.marginPct),
+    [payload.opportunities, filters],
+  );
 
   const autoIds = useMemo(
-    () => ninjaRows.filter((r) => isVerifiable(r.o, payload)).slice(0, AUTO_VERIFY_COUNT).map((r) => r.o.id),
+    () => ninjaRows.filter((o) => isVerifiable(o, payload)).slice(0, AUTO_VERIFY_COUNT).map((o) => o.id),
     [ninjaRows, payload],
   );
   const { states: verif, verify } = useTradeVerification(autoIds);
 
-  // Même ensemble, tri par marge effective (vérifiée si disponible) ; plan de budget sur l'effectif.
+  // Lignes affichées : filtres de prix (marge, profit total, budget) appliqués aux valeurs effectives
+  // (trade vérifié si disponible, sinon ninja) → un faux positif vérifié disparaît, un sous-estimé apparaît.
   const rows = useMemo(() => {
-    return ninjaRows
-      .map((r) => {
-        const v = verif[r.o.id];
+    return payload.opportunities
+      .filter((o) => passesStatic(o, filters))
+      .map((o) => {
+        const v = verif[o.id];
         const vr = v?.status === "done" && v.result.verified ? v.result.opportunity : undefined;
-        const eff = vr ?? r.o;
-        const plan = vr && budgetChaos !== undefined ? planBudget(vr, budgetChaos) : r.plan;
-        return { o: r.o, plan, vr, eff, loading: v?.status === "loading" };
+        const eff = vr ?? o;
+        const plan = planFor(eff, filters.budgetChaos);
+        return { o, plan, vr, eff, loading: v?.status === "loading" };
       })
+      .filter((r) => passesPrice(r.eff, r.plan, filters))
       .sort(compareRows(sort.key, sort.dir));
-  }, [ninjaRows, verif, budgetChaos, sort]);
+  }, [payload.opportunities, filters, verif, sort]);
 
   // Les navigateurs bloquent les onglets au-delà du premier par clic : on affiche une fenêtre de liens.
   const [linksFor, setLinksFor] = useState<string | null>(null);
@@ -178,7 +182,7 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
         )}
       </header>
 
-      <section className="grid grid-cols-2 gap-3 rounded-lg border border-zinc-800 bg-zinc-900/60 p-4 sm:grid-cols-4 lg:grid-cols-7">
+      <section className="grid grid-cols-2 gap-3 rounded-lg border border-zinc-800 bg-zinc-900/60 p-4 sm:grid-cols-4 lg:grid-cols-8">
         <Field label="Type">
           <select className={inputCls} value={kind} onChange={(e) => setKind(e.target.value)}>
             <option value="all">Tous</option>
@@ -195,8 +199,16 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
         <Field label="Profit total min (c)">
           <input className={inputCls} inputMode="decimal" value={minProfit} onChange={(e) => setMinProfit(e.target.value)} />
         </Field>
-        <Field label="Liquidité min">
-          <input className={inputCls} inputMode="decimal" value={minLiq} onChange={(e) => setMinLiq(e.target.value)} />
+        <Field label="Volume min (c, exchange)">
+          <input className={inputCls} inputMode="decimal" value={minVolume} onChange={(e) => setMinVolume(e.target.value)} />
+        </Field>
+        <Field label="Annonces min (stash)">
+          <input
+            className={inputCls}
+            inputMode="decimal"
+            value={minListings}
+            onChange={(e) => setMinListings(e.target.value)}
+          />
         </Field>
         <Field label="Budget (mode budget)">
           <div className="flex gap-1">
@@ -236,8 +248,13 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
               <SortTh k="liquidity" label="Liquidité" sort={sort} setSort={setSort} right />
               <SortTh k="trend" label="7 j" sort={sort} setSort={setSort} right />
               <th className="whitespace-nowrap px-3 py-2">Trade</th>
-              {budgetChaos !== undefined && <th className="px-3 py-2 text-right">Runs</th>}
-              {budgetChaos !== undefined && <SortTh k="total" label="Profit total" sort={sort} setSort={setSort} right />}
+              <th
+                className="whitespace-nowrap px-3 py-2 text-right"
+                title={budgetChaos !== undefined ? "Runs max selon le budget et la liquidité" : "Runs max selon la liquidité (10 % du volume / annonces)"}
+              >
+                Runs
+              </th>
+              <SortTh k="total" label="Profit total" sort={sort} setSort={setSort} right />
             </tr>
           </thead>
           <tbody>
@@ -291,12 +308,10 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
                     </button>
                   )}
                 </td>
-                {plan && <td className="px-3 py-2 text-right">{plan.runs}</td>}
-                {plan && (
-                  <td className="whitespace-nowrap px-3 py-2 text-right">
-                    {fmtProfit(plan.totalProfitChaos, divineChaos)}
-                  </td>
-                )}
+                <td className="px-3 py-2 text-right text-zinc-400">{plan.runs}</td>
+                <td className="whitespace-nowrap px-3 py-2 text-right">
+                  {fmtProfit(plan.totalProfitChaos, divineChaos)}
+                </td>
               </tr>
               );
             })}
@@ -314,8 +329,8 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
       {selectedRow && (
         <OpportunityDetail
           o={selectedRow.o}
-          runs={selectedRow.plan ? Math.max(1, selectedRow.plan.runs) : 1}
-          budgetMode={selectedRow.plan !== undefined}
+          runs={budgetChaos !== undefined ? Math.max(1, selectedRow.plan.runs) : 1}
+          budgetMode={budgetChaos !== undefined}
           payload={payload}
           verification={verif[selectedRow.o.id]}
           links={payload.tradeLinks[selectedRow.o.id] ?? []}
