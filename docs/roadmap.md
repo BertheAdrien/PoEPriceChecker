@@ -40,6 +40,8 @@ Cocher au fur et à mesure. Une étape = une session courte (`/clear` entre deux
 - [x] **Liens trade** uniquement pour les items du trade classique (uniques, etc. via `tradeFilter` de poe.ninja) ;
       pas de lien pour la currency (elle se trade chez Faustus, le Currency Exchange en jeu)
 - [x] Bandeau : ligue, heure des données, ratio divine/chaos
+- [x] **Vérification trade** : prix poe.ninja du stash re-vérifiés sur le trade officiel (securable, non muté, corruption selon la
+      recette), colonne « Trade », badge « faux positif », auto-vérification séquentielle du top 10 + bouton dans le détail
 
 ## Étape 5 — Déploiement
 - [ ] Dockerfile (`output: "standalone"`), docker compose, reverse proxy (Caddy/nginx) sur le VPS

@@ -41,6 +41,8 @@ export interface Opportunity {
   /** Variation 7 j du premier item vendu, si connue. */
   trendPct?: number;
   steps?: ChainStep[];
+  /** Entrées corrompues acceptables ? Absent = non (prudent). Voir `corruptedInputPolicy`. */
+  corruptedInputs?: "allowed" | "forbidden";
   conditional: boolean;
   /** Au moins une recette source non vérifiée (verified: false). */
   unverified: boolean;

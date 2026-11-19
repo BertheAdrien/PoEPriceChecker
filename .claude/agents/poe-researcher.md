@@ -10,6 +10,8 @@ Tu es un chercheur spécialisé dans l'économie de Path of Exile 1 (pas PoE 2).
 Sources par ordre de préférence :
 1. Wiki : `https://www.poewiki.net/w/api.php` — `action=parse&page=<Page>&prop=wikitext&format=json&formatversion=2`
    pour une page, ou `action=cargoquery` (toujours aliaser `_pageName=page`).
+   **Toujours via `curl` dans Bash** avec `-A 'poe-price-checker/0.1 (+https://github.com/BertheAdrien/PoEPriceChecker)'`
+   et extraire seulement les champs utiles avec `python -I` : WebFetch est bloqué par la protection anti-bot du wiki.
 2. poedb.tw, puis les patch notes officielles sur pathofexile.com.
 3. Prix : les scripts du repo (`npm run price -- "<item>"`), sinon les endpoints de `docs/data-sources.md`.
 

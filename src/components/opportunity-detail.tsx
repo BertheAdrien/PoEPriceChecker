@@ -1,6 +1,8 @@
 import type { Opportunity, PricedItem } from "@/lib/engine/types";
 import type { DashboardPayload } from "@/lib/payload";
-import { fmt } from "./format";
+import type { VerifiedItem, VerifyResult } from "@/lib/trade/types";
+import { fmt, fmtProfit } from "./format";
+import type { VerifyState } from "./verify";
 
 function where(o: Opportunity, vendors: Record<string, string>): string {
   if (o.steps?.length) {
@@ -40,12 +42,18 @@ export function OpportunityDetail({
   runs,
   budgetMode,
   payload,
+  verification,
+  verifiable,
+  onVerify,
   onClose,
 }: {
   o: Opportunity;
   runs: number;
   budgetMode: boolean;
   payload: DashboardPayload;
+  verification?: VerifyState;
+  verifiable: boolean;
+  onVerify: () => void;
   onClose: () => void;
 }) {
   const unprofitable = o.profitChaos <= 0;
@@ -76,7 +84,14 @@ export function OpportunityDetail({
           <tbody>
             {o.inputs.map((i) => (
               <tr key={i.item} className="border-t border-zinc-800">
-                <td className="px-2 py-1"><ItemName i={i} trade={payload.trade} /></td>
+                <td className="px-2 py-1">
+                  <ItemName i={i} trade={payload.trade} />
+                  {payload.trade[i.item] && (
+                    <span className="ml-2 text-[10px] text-zinc-500">
+                      {o.corruptedInputs === "allowed" ? "corrompu OK" : "non corrompu requis"}
+                    </span>
+                  )}
+                </td>
                 <td className="px-2 py-1">{i.qty * runs}</td>
                 <td className="px-2 py-1">{fmt(i.unitChaos)}c</td>
                 <td className="px-2 py-1"><Threshold value={i.maxBuyChaos} bad={unprofitable} /></td>
@@ -105,10 +120,95 @@ export function OpportunityDetail({
           </tbody>
         </table>
       </div>
+      {verifiable && (
+        <div className="mt-4 border-t border-zinc-800 pt-3">
+          <div className="mb-2 flex flex-wrap items-center gap-3">
+            <button
+              onClick={onVerify}
+              disabled={verification?.status === "loading"}
+              className="rounded border border-amber-500/60 px-2 py-0.5 text-amber-300 hover:bg-zinc-800 disabled:opacity-50"
+            >
+              {verification?.status === "loading" ? "Vérification…" : "Vérifier sur le trade"}
+            </button>
+            <span className="text-xs text-zinc-500">
+              Médiane des 5 annonces securable les moins chères, hors Foulborn (file séquentielle : quelques secondes).
+            </span>
+          </div>
+          {verification?.status === "error" && <p className="text-red-400">Échec : {verification.message}</p>}
+          {verification?.status === "done" && (
+            <VerifiedTable r={verification.result} divineChaos={payload.divineChaos} />
+          )}
+        </div>
+      )}
       <p className="mt-3 text-xs text-zinc-500">
         Prix seuils : au-delà, le profit tombe à 0 (les autres prix restant fixes). Currency : à acheter chez Faustus
         (Currency Exchange en jeu), pas de lien trade.
       </p>
     </section>
+  );
+}
+
+function VerifiedTable({ r, divineChaos }: { r: VerifyResult; divineChaos: number }) {
+  const th = "px-2 py-1 text-left text-xs uppercase text-zinc-400";
+  const v = r.opportunity;
+  const row = (i: VerifiedItem) => (
+    <tr key={`${i.role}-${i.item}`} className="border-t border-zinc-800">
+      <td className="px-2 py-1">{i.item}</td>
+      <td className="px-2 py-1 text-zinc-400">
+        {i.role === "input" ? "achat" : "vente"}
+        {i.status !== "unverifiable" && ` · ${i.corrupted === "any" ? "corrompu OK" : "non corrompu"}`}
+      </td>
+      <td className="px-2 py-1">{fmt(i.ninjaChaos)}c</td>
+      <td className="px-2 py-1">
+        {i.tradeChaos !== undefined ? (
+          <span className={i.tradeChaos > i.ninjaChaos * 1.2 ? "text-red-400" : undefined}>{fmt(i.tradeChaos)}c</span>
+        ) : i.status === "no_listings" ? (
+          <span className="text-amber-400">aucune annonce</span>
+        ) : (
+          <span className="text-zinc-500">exchange (poe.ninja)</span>
+        )}
+      </td>
+      <td className="px-2 py-1">{i.listings !== undefined ? `${i.listings} (${i.sampled} utilisées)` : "–"}</td>
+      <td className="px-2 py-1">
+        {i.tradeUrl && (
+          <a href={i.tradeUrl} target="_blank" rel="noreferrer" className="text-amber-400 underline">
+            trade ↗
+          </a>
+        )}
+      </td>
+    </tr>
+  );
+  return (
+    <div className="overflow-x-auto">
+      <p className="mb-2">
+        {r.verified ? (
+          <>
+            Marge vérifiée :{" "}
+            <b className={v.profitChaos > 0 ? "text-emerald-400" : "text-red-400"}>
+              {v.marginPct > 0 ? "+" : ""}
+              {fmt(v.marginPct)}% ({fmtProfit(v.profitChaos, divineChaos)})
+            </b>
+            {v.profitChaos <= 0 && (
+              <span className="ml-2 rounded bg-red-500/20 px-1.5 py-0.5 text-[10px] text-red-300">faux positif</span>
+            )}
+          </>
+        ) : (
+          <span className="text-amber-400">Aucun prix trade exploitable : prix poe.ninja conservés.</span>
+        )}
+      </p>
+      <table className="w-full min-w-[40rem]">
+        <thead>
+          <tr>
+            <th className={th}>Item</th>
+            <th className={th}>Rôle</th>
+            <th className={th}>poe.ninja</th>
+            <th className={th}>Trade</th>
+            <th className={th}>Annonces</th>
+            <th className={th}>Lien</th>
+          </tr>
+        </thead>
+        <tbody>{r.items.map(row)}</tbody>
+      </table>
+    </div>
   );
 }

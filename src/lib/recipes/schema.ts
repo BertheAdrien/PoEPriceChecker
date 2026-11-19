@@ -23,6 +23,7 @@ export const recipeSchema = z.object({
   source: z.string().min(1),
   verified: z.union([z.string().min(1), z.literal(false)]),
   conditional: z.boolean().optional(),
+  corruptedInputs: z.enum(["allowed", "forbidden"]).optional(),
   notes: z.string().optional(),
 }) satisfies z.ZodType<Recipe>;
 

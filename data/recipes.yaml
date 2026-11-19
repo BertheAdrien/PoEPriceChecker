@@ -2,6 +2,8 @@
 # kind: vendor_shop | vendor_recipe | div_card | fragment_set | other
 # Noms d'items = noms anglais tels qu'affichés par poe.ninja.
 # vendor_shop : on DONNE `inputs` au PNJ et on REÇOIT `outputs`. Quantité illimitée.
+# corruptedInputs: allowed | forbidden (optionnel) : surcharge la politique par défaut du kind
+#   (vendor_recipe -> allowed ; other = objet appliqué sur un autre objet -> forbidden).
 # verified: date + ligue si vérifié en jeu/wiki ; false sinon.
 
 # --- Boutique PNJ : progression principale (source : tableau "Vendor prices chart" du wiki, fourni par l'utilisateur) ---

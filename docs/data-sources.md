@@ -64,5 +64,30 @@ Doc : https://www.pathofexile.com/developer/docs
   → `primaryValue` est dérivé de cette paire : **aucun signal d'arbitrage**, triangulation non implémentée.
 - API Currency Exchange GGG (`GET https://api.pathofexile.com/currency-exchange`) : **401 Unauthorized sans OAuth** (`{"error":{"code":8,"message":"Unauthorized"}}`) ; il faut un token (scope `service:cxapi`). Non utilisable sans compte/app enregistrée.
 
+### Trade API (vérification des prix du stash)
+Code : `src/lib/trade/` ; endpoint interne `GET /api/verify?id=<id d'opportunité>`.
+- `POST https://www.pathofexile.com/api/trade/search/<league>` → `{id, total, result:[hashes]}`. Sans authentification.
+  Corps : `{"query":{"status":{"option":"securable"},"name":…,"type":…,"filters":{"misc_filters":{"filters":{"corrupted":{"option":"false"},"mutated":{"option":"false"}}}}},"sort":{"price":"asc"}}`.
+  `securable` = achat instantané. Uniques : `name` + `type` (= baseType poe.ninja) ; autres items du stash : `type` seul.
+- `GET …/api/trade/fetch/<≤10 hashes séparés par des virgules>?query=<id>` → `result[].listing.price {amount, currency}`
+  (`chaos`, `divine`, autres devises converties via l'index poe.ninja si résolvables, sinon l'annonce est ignorée) et `result[].item`.
+- Prix retenu = médiane des 5 annonces les moins chères ; cache 15 min par requête. 1 recherche + 1 fetch par item.
+- **Limites** (en-têtes) : `X-Rate-Limit-Ip: 5:10:60,15:60:300,30:300:1800,600:21600:3600` (`hits:période s:pénalité s`) et
+  `X-Rate-Limit-Ip-State` (hits courants ; 3e champ = secondes de restriction). Le fetch a sa propre politique. Dépasser une
+  fenêtre = IP bloquée pour la pénalité. Le limiteur (`limiter.ts`) sérialise tout, reste une requête sous chaque limite,
+  apprend les règles des en-têtes et respecte `Retry-After` / restrictions (429 → l'endpoint répond 429 + `Retry-After`).
+- User-Agent : `poe-price-checker/0.1 (+https://github.com/BertheAdrien/PoEPriceChecker)`.
+- **Pièges**
+  - poe.ninja mélange copies **corrompues et non corrompues** dans le prix d'un unique : une recette qui exige une entrée non
+    corrompue (on applique de la currency / un objet dessus, kind `other`) paraît bien plus rentable qu'elle ne l'est.
+    Ex. (Covens) The Red Dream + Flesh of Xesht → The Red Nightmare : +252 % sur poe.ninja (2 div → 8 div), ~+6 % sur le trade
+    (7 div → 8 div, non corrompu).
+  - Politique par recette `corruptedInputs` (`allowed` | `forbidden`, défaut dérivé du kind par `corruptedInputPolicy` :
+    `vendor_recipe` → allowed, sinon forbidden ; surchargeable dans le YAML). Entrées : filtre `corrupted:false` seulement si
+    forbidden ; sorties : toujours `corrupted:false`.
+  - **Foulborn** (`mutated`) : sans `mutated:false` ces copies sont incluses. poe.ninja les liste sous « Foulborn <nom> » :
+    ces items ne sont pas vérifiés.
+  - Seuls les items du stash sont vérifiés ; currency, cartes, fragments (exchange) gardent le prix poe.ninja.
+
 ## 4. RePoE
 https://github.com/lvlvllvlvllvlvl/RePoE — JSON extraits du jeu (bases, mods, gemmes). Référentiel d'items si besoin.

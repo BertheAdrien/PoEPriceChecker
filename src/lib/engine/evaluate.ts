@@ -1,4 +1,5 @@
 import type { PriceIndex } from "../prices/types";
+import { corruptedInputPolicy } from "../recipes/policy";
 import type { Recipe, RecipeItem } from "../recipes/types";
 import { DEFAULT_ENGINE_CONFIG, type EngineConfig } from "./config";
 import type { ChainStep, EvalResult, Opportunity, OpportunityKind, PricedItem } from "./types";
@@ -9,6 +10,7 @@ export interface TradeSpec {
   inputs: RecipeItem[];
   outputs: RecipeItem[];
   conditional?: boolean;
+  corruptedInputs?: "allowed" | "forbidden";
   unverified?: boolean;
   sources: string[];
   steps?: ChainStep[];
@@ -62,44 +64,100 @@ export function evaluateTrade(
   if (!ins.ok) return ins;
   if (!outs.ok) return outs;
 
-  const cost = ins.items.reduce((s, i) => s + i.qty * i.unitChaos, 0);
-  const gross = outs.items.reduce((s, i) => s + i.qty * i.unitChaos, 0);
+  return {
+    ok: true,
+    opportunity: assemble(
+      {
+        id: spec.id,
+        kind: spec.kind,
+        label: spec.label ?? `${sideLabel(spec.inputs)} → ${sideLabel(spec.outputs)}`,
+        conditional: spec.conditional ?? false,
+        corruptedInputs: spec.corruptedInputs,
+        unverified: spec.unverified ?? false,
+        sources: spec.sources,
+        steps: spec.steps,
+        trendPct: prices.get(spec.outputs[0].item)?.trendPct,
+      },
+      ins.items,
+      outs.items,
+      prices.divineChaos,
+      config,
+    ),
+  };
+}
+
+type OpportunityMeta = Pick<
+  Opportunity,
+  "id" | "kind" | "label" | "conditional" | "corruptedInputs" | "unverified" | "sources" | "steps" | "trendPct"
+>;
+
+/** Coût, revenu, marge, seuils et liquidité à partir d'items déjà valorisés (logique commune). */
+function assemble(
+  meta: OpportunityMeta,
+  inputs: PricedItem[],
+  outputs: PricedItem[],
+  divineChaos: number,
+  config: EngineConfig,
+): Opportunity {
+  const cost = inputs.reduce((s, i) => s + i.qty * i.unitChaos, 0);
+  const gross = outputs.reduce((s, i) => s + i.qty * i.unitChaos, 0);
   const revenue = gross * (1 - config.safetyMargin);
   const profit = revenue - cost;
 
   const keep = 1 - config.safetyMargin;
-  for (const i of ins.items) i.maxBuyChaos = (revenue - (cost - i.qty * i.unitChaos)) / i.qty;
-  for (const o of outs.items) {
+  for (const i of inputs) i.maxBuyChaos = (revenue - (cost - i.qty * i.unitChaos)) / i.qty;
+  for (const o of outputs) {
     const othersNet = (gross - o.qty * o.unitChaos) * keep;
     o.minSellChaos = (cost - othersNet) / (o.qty * keep);
   }
 
-  const all = [...ins.items, ...outs.items];
+  const all = [...inputs, ...outputs];
   const vols = all.filter((i) => i.liquidityKind === "volumeChaos").map((i) => i.liquidity);
   const lists = all.filter((i) => i.liquidityKind === "listings").map((i) => i.liquidity);
 
-  const opportunity: Opportunity = {
-    id: spec.id,
-    kind: spec.kind,
-    label: spec.label ?? `${sideLabel(spec.inputs)} → ${sideLabel(spec.outputs)}`,
-    inputs: ins.items,
-    outputs: outs.items,
+  return {
+    ...meta,
+    inputs,
+    outputs,
     costChaos: cost,
     revenueChaos: revenue,
     profitChaos: profit,
-    profitDivine: profit / prices.divineChaos,
+    profitDivine: profit / divineChaos,
     marginPct: (profit / cost) * 100,
     liquidity: {
       minVolumeChaos: vols.length ? Math.min(...vols) : undefined,
       minListings: lists.length ? Math.min(...lists) : undefined,
     },
-    trendPct: prices.get(spec.outputs[0].item)?.trendPct,
-    steps: spec.steps,
-    conditional: spec.conditional ?? false,
-    unverified: spec.unverified ?? false,
-    sources: spec.sources,
   };
-  return { ok: true, opportunity };
+}
+
+/**
+ * Ré-évalue une opportunité avec d'autres prix unitaires (nom d'item -> chaos), par ex. des prix
+ * vérifiés sur le trade. Même logique de seuil que `evaluateTrade` ; liquidité et métadonnées inchangées.
+ * Une surcharge non finie ou <= 0 est ignorée.
+ */
+export function reevaluateWithOverrides(
+  o: Opportunity,
+  overrides: ReadonlyMap<string, number>,
+  divineChaos: number,
+  config: EngineConfig = DEFAULT_ENGINE_CONFIG,
+): Opportunity {
+  const reprice = (i: PricedItem): PricedItem => {
+    const p = overrides.get(i.item);
+    const copy: PricedItem = { ...i };
+    delete copy.maxBuyChaos;
+    delete copy.minSellChaos;
+    if (p !== undefined && Number.isFinite(p) && p > 0) copy.unitChaos = p;
+    return copy;
+  };
+  const { id, kind, label, conditional, corruptedInputs, unverified, sources, steps, trendPct } = o;
+  return assemble(
+    { id, kind, label, conditional, corruptedInputs, unverified, sources, steps, trendPct },
+    o.inputs.map(reprice),
+    o.outputs.map(reprice),
+    divineChaos,
+    config,
+  );
 }
 
 export function evaluateRecipe(
@@ -114,6 +172,7 @@ export function evaluateRecipe(
       inputs: recipe.inputs,
       outputs: recipe.outputs,
       conditional: recipe.conditional,
+      corruptedInputs: corruptedInputPolicy(recipe),
       unverified: recipe.verified === false,
       sources: [recipe.source],
     },
