@@ -30,16 +30,16 @@ Cocher au fur et à mesure. Une étape = une session courte (`/clear` entre deux
 - [x] CLI `npm run opps -- --top 20 [--kind ...] [--id ...]`
 
 ## Étape 4 — UI
-- [ ] Page unique : tableau trié par marge %, colonnes marge %, profit (c), coût, liquidité, tendance 7 j, étapes
-- [ ] Filtres : type d'opportunité, liquidité min, marge min
-- [ ] **Mode budget** : champ capital (c ou div) → masque ce qui coûte plus que le budget ; affiche le nombre de
+- [x] Page unique : tableau trié par marge %, colonnes marge %, profit (c), coût, liquidité, tendance 7 j, étapes
+- [x] Filtres : type d'opportunité, liquidité min, marge min
+- [x] **Mode budget** : champ capital (c ou div) → masque ce qui coûte plus que le budget ; affiche le nombre de
       runs possibles et le profit total, plafonné par la liquidité (ex. House of Mirrors = plusieurs centaines de div → masqué)
-- [ ] **Liste de courses** (détail d'une opportunité) : quoi acheter, combien, où convertir (PNJ / vendor), à quel prix revendre,
+- [x] **Liste de courses** (détail d'une opportunité) : quoi acheter, combien, où convertir (PNJ / vendor), à quel prix revendre,
       et surtout les **prix seuils** : prix d'achat max de chaque entrée et prix de vente min de la sortie au-delà desquels
       la marge devient nulle (les autres prix étant fixés)
-- [ ] **Liens trade** uniquement pour les items du trade classique (uniques, etc. via `tradeFilter` de poe.ninja) ;
+- [x] **Liens trade** uniquement pour les items du trade classique (uniques, etc. via `tradeFilter` de poe.ninja) ;
       pas de lien pour la currency (elle se trade chez Faustus, le Currency Exchange en jeu)
-- [ ] Bandeau : ligue, heure des données, ratio divine/chaos
+- [x] Bandeau : ligue, heure des données, ratio divine/chaos
 
 ## Étape 5 — Déploiement
 - [ ] Dockerfile (`output: "standalone"`), docker compose, reverse proxy (Caddy/nginx) sur le VPS

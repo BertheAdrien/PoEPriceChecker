@@ -9,6 +9,7 @@ export interface PriceEntry {
   category: string;
   detailsId?: string;
   icon?: string;
+  baseType?: string;
 }
 
 export interface PriceIndex {

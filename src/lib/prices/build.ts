@@ -125,6 +125,7 @@ export async function buildPriceIndex(
         category: t,
         detailsId: opt(l.detailsId),
         icon: absIcon(l.icon),
+        baseType: opt(l.baseType),
       });
     }
   }

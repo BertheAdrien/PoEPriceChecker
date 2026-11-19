@@ -10,6 +10,9 @@ export interface EngineConfig {
   maxChainSteps: number;
 }
 
+/** Part max du volume échangé (en chaos) qu'on suppose pouvoir acheter sans bouger le prix (exchange). */
+export const MAX_VOLUME_SHARE = 0.1;
+
 export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   safetyMargin: 0.05,
   minVolumeChaos: 300,
