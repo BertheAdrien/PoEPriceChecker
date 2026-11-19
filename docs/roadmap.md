@@ -4,7 +4,7 @@ Cocher au fur et à mesure. Une étape = une session courte (`/clear` entre deux
 
 ## Étape 0 — Socle
 - [x] `create-next-app` (TS, Tailwind, App Router, `src/`), Vitest, zod, `yaml`, `tsx` pour les scripts
-- [ ] Scripts npm : `dev, build, test, lint, typecheck, opps, price, import:wiki`
+- [x] Scripts npm : `dev, build, test, lint, typecheck, opps, price, import:wiki`
 - [x] `git init`, `.gitignore`, premier commit, repo GitHub public
 
 ## Étape 1 — Prix (poe.ninja)
@@ -41,9 +41,22 @@ Cocher au fur et à mesure. Une étape = une session courte (`/clear` entre deux
       pas de lien pour la currency (elle se trade chez Faustus, le Currency Exchange en jeu)
 - [x] Bandeau : ligue, heure des données, ratio divine/chaos
 - [x] **Vérification trade** : prix poe.ninja du stash re-vérifiés sur le trade officiel (securable, non muté, corruption selon la
-      recette), colonne « Trade », badge « faux positif », auto-vérification séquentielle du top 10 + bouton dans le détail
+      recette), badges « faux positif » / « surestimé », auto-vérification séquentielle du top 10 + bouton dans le détail
+- [x] Marge/profit affichés = valeurs **réelles** (trade) quand vérifiées, valeur ninja en sous-texte ; tri par clic sur les en-têtes ;
+      colonne Trade = bouton « Ouvrir tout » (liens trade filtrés, détail par item dans la liste de courses)
+- [x] Filtre « Profit total min » (budget ou plafond de liquidité) au lieu d'un seuil par run (qui masquait la currency bon marché)
+- [x] Corruption : entrées **non corrompues exigées par défaut** ; exceptions sourcées dans `data/recipe-overrides.yaml`
+
+## Étape 4 bis — Corrections en cours (à traiter avant le déploiement)
+- [ ] **Filtres signalés « cassés » par l'utilisateur** (2026-11-19) — symptôme pas encore décrit : lui demander lequel / ce qu'il observe.
+      Piste : « Liquidité min » mélange deux unités (volume en chaos pour l'exchange, nb d'annonces pour le stash) → séparer en deux filtres.
+- [ ] Mode budget : le masquage « trop cher » et le filtre profit total utilisent encore les prix ninja (pas les prix trade vérifiés)
+- [ ] Recettes vendeur d'uniques dont l'acceptation des corrompus est inconnue (Lost Unity, Magna Eclipsis, Arborix, Goddess Scorned) :
+      à tester en jeu ; Kingmaker/Duskdawn sont classées `other` alors que ce sont des recettes vendeur (classification wiki à affiner)
+- [ ] Avertissement de build Turbopack sur les lectures `fs` de `recipes/load.ts` (à régler avec le Dockerfile : inclure `data/` dans l'image)
 
 ## Étape 5 — Déploiement
+- [ ] Infos VPS à demander à l'utilisateur : Docker présent ? reverse proxy (nginx / Caddy / Traefik) ? nom de domaine ?
 - [ ] Dockerfile (`output: "standalone"`), docker compose, reverse proxy (Caddy/nginx) sur le VPS
 - [ ] GitHub Actions : tests + build de l'image à chaque push
 
