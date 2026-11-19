@@ -116,6 +116,9 @@ export function useTradeVerification(autoIds: string[], fetchedAt: string) {
   }, []);
 
   // Restaure les vérifications déjà faites (avant l'effet des autoIds : elles ne sont pas refaites).
+  // Rejoué quand la page redevient visible (Next garde le tableau monté mais masqué pendant la visite
+  // d'une liste de courses) : un résultat obtenu entre-temps sur une autre page remplace un échec ou un
+  // résultat plus ancien affiché ici. Seule une vérification en cours est laissée telle quelle.
   useEffect(() => {
     const saved = readSession<Record<string, VerifyResult>>("verifications", fetchedAt) ?? {};
     for (const id of Object.keys(saved)) queued.current.add(id);
@@ -123,7 +126,9 @@ export function useTradeVerification(autoIds: string[], fetchedAt: string) {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- sessionStorage n'existe qu'après l'hydratation
     setStates((prev) => {
       const next = { ...prev };
-      for (const [id, result] of Object.entries(saved)) next[id] ??= { status: "done", result };
+      for (const [id, result] of Object.entries(saved)) {
+        if (next[id]?.status !== "loading") next[id] = { status: "done", result };
+      }
       return next;
     });
   }, [fetchedAt]);
