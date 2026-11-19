@@ -98,9 +98,12 @@ function Price({ item, unit, ninja, dc }: { item: string; unit: number; ninja: (
  */
 function PriceSourceNotice({ verification, onVerify }: { verification?: VerifyState; onVerify: () => void }) {
   const loading = verification?.status === "loading";
+  const unavailable = verification?.status === "unavailable";
   const text = loading
     ? "Vérification trade en cours : prix poe.ninja affichés en attendant."
-    : verification?.status === "error"
+    : unavailable
+      ? "Vérification trade indisponible sur ce serveur (le trade officiel le refuse) : prix poe.ninja affichés. Vérifie avec les liens trade, ou utilise l'appli en local."
+      : verification?.status === "error"
       ? `Vérification trade échouée (${verification.message}) : prix poe.ninja affichés, à prendre avec prudence.`
       : verification?.status === "done"
         ? "Aucune annonce exploitable sur le trade : prix poe.ninja affichés."
@@ -116,7 +119,7 @@ function PriceSourceNotice({ verification, onVerify }: { verification?: VerifySt
     >
       {loading && <RuneSpinner size={14} />}
       <span className="flex-1">{text}</span>
-      {!loading && (
+      {!loading && !unavailable && (
         <button onClick={onVerify} className="btn-ghost px-3 py-1.5 font-display text-[11px] tracking-wide">
           ↻ Réessayer
         </button>

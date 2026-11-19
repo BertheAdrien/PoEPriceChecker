@@ -15,5 +15,6 @@ describe("tradeStatus", () => {
     expect(tradeStatus(done(true), true)).toBe("verified");
     expect(tradeStatus(done(false), true)).toBe("no_data");
     expect(tradeStatus({ status: "error", message: "x" }, true)).toBe("error");
+    expect(tradeStatus({ status: "unavailable", message: "x" }, true)).toBe("unavailable");
   });
 });

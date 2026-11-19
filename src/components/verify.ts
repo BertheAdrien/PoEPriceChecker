@@ -10,7 +10,9 @@ import { readSession, writeSession } from "./session";
 export type VerifyState =
   | { status: "loading" }
   | { status: "done"; result: VerifyResult }
-  | { status: "error"; message: string };
+  | { status: "error"; message: string }
+  /** Le trade refuse les requêtes de ce serveur (403, cf. `src/lib/trade/blocked.ts`). */
+  | { status: "unavailable"; message: string };
 
 /** Au moins un item du stash (lien trade connu) hors Foulborn : vérifiable sur le trade. */
 export function isVerifiable(o: Opportunity, payload: Pick<DashboardPayload, "trade">): boolean {
@@ -20,13 +22,14 @@ export function isVerifiable(o: Opportunity, payload: Pick<DashboardPayload, "tr
 export const AUTO_VERIFY_COUNT = 10;
 
 /** État de vérification affiché en cartouche ; "none" = rien à vérifier (currency, cartes…). */
-export type TradeStatus = "none" | "pending" | "checking" | "verified" | "no_data" | "error";
+export type TradeStatus = "none" | "pending" | "checking" | "verified" | "no_data" | "error" | "unavailable";
 
 export function tradeStatus(v: VerifyState | undefined, verifiable: boolean): TradeStatus {
   if (!verifiable) return "none";
   if (!v) return "pending";
   if (v.status === "loading") return "checking";
   if (v.status === "error") return "error";
+  if (v.status === "unavailable") return "unavailable";
   return v.result.verified ? "verified" : "no_data";
 }
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -45,6 +48,8 @@ export function useTradeVerification(autoIds: string[], fetchedAt: string) {
   const queued = useRef<Set<string>>(new Set());
   /** Ids en file ou en cours : pas de doublon, même manuel. */
   const inflight = useRef<Set<string>>(new Set());
+  /** Trade indisponible pour ce serveur (réponse 503) : plus de vérification automatique dans la page. */
+  const blocked = useRef<string | null>(null);
   const fetchedAtRef = useRef(fetchedAt);
   useEffect(() => {
     fetchedAtRef.current = fetchedAt;
@@ -70,8 +75,24 @@ export function useTradeVerification(autoIds: string[], fetchedAt: string) {
         setState(undefined);
         return;
       }
+      if (!manual && blocked.current !== null) {
+        queued.current.delete(id);
+        inflight.current.delete(id);
+        setState({ status: "unavailable", message: blocked.current });
+        return;
+      }
       try {
         const res = await fetch(`/api/verify?id=${encodeURIComponent(id)}${manual ? "&fresh=1" : ""}`);
+        if (res.status === 503) {
+          const body = (await res.json().catch(() => ({}))) as { unavailable?: boolean; error?: string };
+          if (body.unavailable) {
+            const message = body.error ?? "trade indisponible depuis ce serveur";
+            blocked.current = message;
+            queued.current.delete(id);
+            setState({ status: "unavailable", message });
+            return;
+          }
+        }
         if (res.status === 429) {
           const body = (await res.json().catch(() => ({}))) as { retryAfterSec?: number; error?: string };
           queued.current.delete(id);

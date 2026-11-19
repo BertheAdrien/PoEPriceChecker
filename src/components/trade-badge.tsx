@@ -28,6 +28,12 @@ const BADGES: Record<Exclude<TradeStatus, "none">, { text: string; color: string
     color: "var(--color-danger)",
     title: "La vérification trade a échoué (limite de débit ou erreur) : prix poe.ninja conservés.",
   },
+  unavailable: {
+    text: "trade indisponible ici",
+    color: "var(--color-faint)",
+    title:
+      "Le trade officiel refuse les requêtes de ce serveur (IP d'hébergeur) : prix poe.ninja affichés. Utilise les liens trade, ou l'appli en local pour la vérification automatique.",
+  },
 };
 
 function Icon({ status }: { status: Exclude<TradeStatus, "none"> }) {
@@ -42,6 +48,8 @@ function Icon({ status }: { status: Exclude<TradeStatus, "none"> }) {
       return <span aria-hidden className="mx-0.5 h-0.5 w-3 bg-flame" />;
     case "error":
       return <span aria-hidden className="px-0.5 font-bold text-danger">✕</span>;
+    case "unavailable":
+      return <span aria-hidden className="mx-1 size-2.5 rounded-full border-[1.5px] border-faint" />;
   }
 }
 

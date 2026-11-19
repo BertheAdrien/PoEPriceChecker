@@ -122,6 +122,7 @@ const PIP: Record<TradeStatus, string> = {
   checking: "bg-frost",
   pending: "bg-[#2a1a10]",
   none: "bg-[#2a1a10]",
+  unavailable: "bg-[#2a1a10]",
 };
 
 export function Dashboard({ payload }: { payload: DashboardPayload }) {
@@ -264,6 +265,7 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
   // Métriques d'en-tête
   const autoStatuses = autoIds.map((id) => tradeStatus(verif[id], true));
   const finished = autoStatuses.filter((s) => s === "verified" || s === "no_data" || s === "error").length;
+  const tradeUnavailable = Object.values(verif).some((v) => v.status === "unavailable");
   const best = useMemo(() => {
     let top: { o: Opportunity; vr: Opportunity } | undefined;
     for (const o of payload.opportunities) {
@@ -358,15 +360,21 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
         >
           {best ? <span className="text-molten">+{fmt(best.vr.marginPct)} %</span> : <span className="text-faint">—</span>}
         </Metric>
-        <Metric label="Vérification trade">
-          {finished}
-          <span className="text-lg text-faint"> / {autoIds.length}</span>
-          <div className="mt-2 mb-0.5 grid grid-cols-10 gap-1" aria-hidden>
-            {Array.from({ length: AUTO_VERIFY_COUNT }, (_, i) => (
-              <span key={i} className={`h-1.5 ${PIP[autoStatuses[i] ?? "none"]}`} />
-            ))}
-          </div>
-        </Metric>
+        {tradeUnavailable ? (
+          <Metric label="Vérification trade" note="le trade refuse ce serveur : utilise les liens trade, ou l'appli en local">
+            <span className="text-faint">indisponible</span>
+          </Metric>
+        ) : (
+          <Metric label="Vérification trade">
+            {finished}
+            <span className="text-lg text-faint"> / {autoIds.length}</span>
+            <div className="mt-2 mb-0.5 grid grid-cols-10 gap-1" aria-hidden>
+              {Array.from({ length: AUTO_VERIFY_COUNT }, (_, i) => (
+                <span key={i} className={`h-1.5 ${PIP[autoStatuses[i] ?? "none"]}`} />
+              ))}
+            </div>
+          </Metric>
+        )}
         <Metric label="Marge de sécurité" note="déduite du prix de revente">
           {payload.safetyMarginPct} %
         </Metric>

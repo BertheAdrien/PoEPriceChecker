@@ -45,7 +45,7 @@ export function OpportunityPage({
             <Frame />← Retour au tableau
           </Link>
           <TradeBadge status={status} />
-          {verifiable && status !== "checking" && (
+          {verifiable && status !== "checking" && status !== "unavailable" && (
             <button
               onClick={() => verify(o.id)}
               title="Relance la recherche sur le trade officiel (ignore le cache de 15 min)"
