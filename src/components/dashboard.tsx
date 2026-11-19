@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { planBudget } from "@/lib/engine/budget";
+import { liquidityRunCap, planBudget } from "@/lib/engine/budget";
 import type { Opportunity, OpportunityKind } from "@/lib/engine/types";
 import type { DashboardPayload } from "@/lib/payload";
 import { OpportunityDetail } from "./opportunity-detail";
@@ -50,7 +50,7 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
   const [kind, setKind] = useState<string>("all");
   const [minMargin, setMinMargin] = useState("0");
   const [minLiq, setMinLiq] = useState("0");
-  const [minProfit, setMinProfit] = useState("1");
+  const [minProfit, setMinProfit] = useState("5");
   const [showConditional, setShowConditional] = useState(false);
   const [budget, setBudget] = useState("");
   const [unit, setUnit] = useState<"c" | "div">("c");
@@ -69,7 +69,7 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
     return payload.opportunities
       .filter((o) => showConditional || !o.conditional)
       .filter((o) => kind === "all" || o.kind === kind)
-      .filter((o) => o.marginPct >= mm && o.profitChaos >= mp)
+      .filter((o) => o.marginPct >= mm)
       .filter((o) => {
         const l = o.liquidity;
         return (
@@ -79,6 +79,9 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
       })
       .map((o) => ({ o, plan: budgetChaos !== undefined ? planBudget(o, budgetChaos) : undefined }))
       .filter((r) => !r.plan || r.plan.affordable)
+      // Profit total réalisable : avec budget = runs du plan ; sans budget = runs plafonnés par la liquidité.
+      // (Un filtre par run masquait toute la currency bon marché, ex. 4 Fusing → 1 Scouring = 0,16c/run.)
+      .filter(({ o, plan }) => (plan ? plan.totalProfitChaos : o.profitChaos * liquidityRunCap(o)) >= mp)
       .sort((a, b) => b.o.marginPct - a.o.marginPct);
   }, [payload.opportunities, kind, minMargin, minLiq, minProfit, showConditional, budgetChaos]);
 
@@ -124,7 +127,7 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
         <Field label="Marge min (%)">
           <input className={inputCls} inputMode="decimal" value={minMargin} onChange={(e) => setMinMargin(e.target.value)} />
         </Field>
-        <Field label="Profit min / run (c)">
+        <Field label="Profit total min (c)">
           <input className={inputCls} inputMode="decimal" value={minProfit} onChange={(e) => setMinProfit(e.target.value)} />
         </Field>
         <Field label="Liquidité min">
