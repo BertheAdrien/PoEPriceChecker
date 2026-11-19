@@ -21,7 +21,6 @@ WORKDIR /app
 
 COPY --from=build --chown=node:node /app/.next/standalone ./
 COPY --from=build --chown=node:node /app/.next/static ./.next/static
-COPY --from=build --chown=node:node /app/public ./public
 # Recettes lues à l'exécution via process.cwd()/data (src/lib/recipes/load.ts).
 COPY --from=build --chown=node:node /app/data ./data
 
