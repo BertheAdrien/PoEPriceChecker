@@ -24,3 +24,19 @@ describe("corruptedInputPolicy", () => {
     expect(() => recipeSchema.parse({ ...base, corruptedInputs: "maybe" })).toThrow();
   });
 });
+
+describe("corruptedInputPolicy — notes du wiki", () => {
+  it("interdit les corrompus quand les notes le disent (The Retch)", () => {
+    expect(
+      corruptedInputPolicy({
+        kind: "vendor_recipe",
+        notes: "Feastbind: Corrupted items cannot be used | Faminebind: Corrupted items cannot be used",
+      }),
+    ).toBe("forbidden");
+  });
+  it("laisse le YAML explicite l'emporter sur les notes", () => {
+    expect(
+      corruptedInputPolicy({ kind: "vendor_recipe", corruptedInputs: "allowed", notes: "Corrupted items cannot be used" }),
+    ).toBe("allowed");
+  });
+});
