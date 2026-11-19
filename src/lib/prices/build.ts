@@ -93,6 +93,12 @@ const POECDN = "https://web.poecdn.com";
 const absIcon = (s?: string | null) => (s ? (s.startsWith("/") ? POECDN + s : s) : undefined);
 const opt = <T>(v: T | null | undefined) => v ?? undefined;
 
+/** Série de la sparkline, gardée seulement si elle permet un tracé (au moins 2 points connus). */
+export function trendSeries(data: (number | null)[] | null | undefined): (number | null)[] | undefined {
+  if (!data || data.filter((v) => v !== null).length < 2) return undefined;
+  return data;
+}
+
 export async function buildPriceIndex(
   league?: string,
   opts: BuildOptions = {},
@@ -162,6 +168,7 @@ export async function buildPriceIndex(
         liquidity: l.volumePrimaryValue ?? 0,
         liquidityKind: "volumeChaos",
         trendPct: opt(l.sparkline?.totalChange),
+        trendSeries: trendSeries(l.sparkline?.data),
         source: "exchange",
         category: t,
         detailsId: opt(item.detailsId),
@@ -193,6 +200,7 @@ export async function buildPriceIndex(
         liquidity: l.listingCount ?? l.count ?? 0,
         liquidityKind: "listings",
         trendPct: opt(l.sparkLine?.totalChange),
+        trendSeries: trendSeries(l.sparkLine?.data),
         source: "stash",
         category: t,
         detailsId: opt(l.detailsId),

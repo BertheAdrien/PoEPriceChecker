@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { getCurrentLeague, getExchangeOverview, getItemOverview, type FetchLike } from "../ninja";
-import { buildPriceIndex, clearPriceCache } from "./build";
+import { buildPriceIndex, clearPriceCache, trendSeries } from "./build";
 
 const fx = (n: string) =>
   JSON.parse(readFileSync(join(__dirname, "../ninja/__fixtures__", n), "utf8"));
@@ -157,6 +157,21 @@ describe("buildPriceIndex", () => {
     expect(fusing.source).toBe("exchange");
     expect(fusing.liquidityKind).toBe("volumeChaos");
     expect(idx.get("Divine Orb")!.chaos).toBe(idx.divineChaos);
+  });
+  it("keeps the 7-day sparkline series when it has at least 2 known points", async () => {
+    const idx = await buildPriceIndex("Covens", opts);
+    // fixture exchange : chaos = [null, 0, -43.06, …, -70.62]
+    const chaos = idx.get("Chaos Orb")!;
+    expect(chaos.trendSeries).toHaveLength(7);
+    expect(chaos.trendSeries![0]).toBeNull();
+    expect(chaos.trendSeries![6]).toBe(chaos.trendPct);
+    // fixture stash : Foulborn Headhunter a une série vide → pas de série
+    expect(idx.get("Foulborn Headhunter")?.trendSeries).toBeUndefined();
+  });
+  it("trendSeries: needs 2 known points", () => {
+    expect(trendSeries(undefined)).toBeUndefined();
+    expect(trendSeries([null, 3])).toBeUndefined();
+    expect(trendSeries([null, 0, 3])).toEqual([null, 0, 3]);
   });
   it("keeps cheapest unlinked line for duplicates", async () => {
     const idx = await buildPriceIndex("Covens", opts);

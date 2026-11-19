@@ -25,10 +25,24 @@ export function planFor(o: Opportunity, budgetChaos: number | undefined): Budget
   return planBudget(o, budgetChaos ?? Infinity);
 }
 
+/** Groupe d'affichage propre à l'UI : essences et huiles sorties des recettes vendeur. */
+export const ESSENCE_OIL = "essence_oil";
+const ESSENCE_OIL_CATEGORIES = new Set(["Essence", "Oil"]);
+
+/**
+ * Type utilisé par le filtre : `essence_oil` si toutes les entrées et sorties sont des essences ou
+ * des huiles (catégories poe.ninja), sinon le type de l'opportunité.
+ */
+export function filterKind(o: Opportunity, categories: Record<string, string> = {}): string {
+  const items = [...(o.inputs ?? []), ...(o.outputs ?? [])];
+  if (items.length > 0 && items.every((i) => ESSENCE_OIL_CATEGORIES.has(categories[i.item] ?? ""))) return ESSENCE_OIL;
+  return o.kind;
+}
+
 /** Filtres indépendants des prix (type, conditionnelles) : ne changent pas après vérification. */
-export function passesStatic(o: Opportunity, f: Filters): boolean {
+export function passesStatic(o: Opportunity, f: Filters, categories?: Record<string, string>): boolean {
   if (!f.showConditional && o.conditional) return false;
-  if (f.kind !== "all" && o.kind !== f.kind) return false;
+  if (f.kind !== "all" && filterKind(o, categories) !== f.kind) return false;
   return true;
 }
 

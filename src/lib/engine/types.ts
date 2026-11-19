@@ -40,6 +40,8 @@ export interface Opportunity {
   liquidity: { minVolumeChaos?: number; minListings?: number };
   /** Variation 7 j du premier item vendu, si connue. */
   trendPct?: number;
+  /** Sparkline 7 j du premier item vendu (variation cumulée en %, null = jour sans donnée), si connue. */
+  trendSeries?: (number | null)[];
   steps?: ChainStep[];
   /** Entrées corrompues acceptables ? Absent = non (prudent). Voir `corruptedInputPolicy`. */
   corruptedInputs?: "allowed" | "forbidden";

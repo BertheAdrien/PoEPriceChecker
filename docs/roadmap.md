@@ -55,6 +55,10 @@ Cocher au fur et à mesure. Une étape = une session courte (`/clear` entre deux
 - [x] **Liste de courses = page dédiée** `/opportunite?id=…&runs=…` (même onglet ; Ctrl+clic / molette = nouvel onglet) ;
       filtres, tri, défilement et vérifications conservés dans l'onglet (`sessionStorage`, vérifs invalidées si les prix changent) ;
       vérification trade automatique à l'ouverture ; cartouche d'état trade par ligne (à vérifier / en cours / ✓ / échec)
+- [x] **Refonte graphique « Runes de feu »** (2026-11-19, maquettes Claude Design) : thème obsidienne/or/braise
+      (tokens dans `globals.css`, composants `src/components/ui/`), polices Cinzel / Cormorant / Plex / JetBrains,
+      noms d'items colorés par catégorie poe.ninja (`payload.categories`), types de filtre en anglais, groupe
+      « Essences & Oils » (`filterKind`), sparkline 7 j (`trendSeries`), runs saisissables dans la liste de courses
 - [ ] Flesh of Xesht sur un Dream corrompu : l'utilisateur pense que c'est accepté ; le wiki ne le dit pas (seule mention :
       refusé sur Skin of the Lords, toujours corrompu). En attente d'un test en jeu (et : la sortie est-elle corrompue ?)
 - [ ] Recettes vendeur d'uniques dont l'acceptation des corrompus est inconnue (Lost Unity, Magna Eclipsis, Arborix, Goddess Scorned) :

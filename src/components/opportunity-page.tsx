@@ -6,11 +6,13 @@ import type { DashboardPayload } from "@/lib/payload";
 import type { TradeLink } from "@/lib/trade/links";
 import { fmt } from "./format";
 import { OpportunityDetail } from "./opportunity-detail";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { TradeBadge } from "./trade-badge";
+import { TradeLinksModal } from "./trade-links-modal";
+import { Frame } from "./ui/rune";
 import { isVerifiable, tradeStatus, useTradeVerification } from "./verify";
 
-export type DetailPayload = Pick<DashboardPayload, "league" | "fetchedAt" | "divineChaos" | "vendors" | "trade">;
+export type DetailPayload = Pick<DashboardPayload, "league" | "fetchedAt" | "divineChaos" | "vendors" | "trade" | "categories">;
 
 export function OpportunityPage({
   o,
@@ -30,31 +32,41 @@ export function OpportunityPage({
   const autoIds = useMemo(() => (verifiable ? [o.id] : []), [verifiable, o.id]);
   const { states, verify } = useTradeVerification(autoIds, payload.fetchedAt);
   const status = tradeStatus(states[o.id], verifiable);
+  const [n, setN] = useState(runs ?? 1);
+  const [linksOpen, setLinksOpen] = useState(false);
   return (
-    <div className="flex flex-col gap-4">
-      <nav className="flex flex-wrap items-center justify-between gap-3 text-sm">
-        <span className="flex items-center gap-2">
-          <Link href="/" className="rounded border border-zinc-700 px-2 py-1 text-zinc-300 hover:bg-zinc-800">
-            ← Retour au tableau
+    <div className="flex flex-col gap-6">
+      <nav className="flex flex-wrap items-center justify-between gap-3 text-[13px]">
+        <span className="flex flex-wrap items-center gap-4">
+          <Link
+            href="/"
+            className="rune-panel inline-flex items-center gap-2 bg-[#140d09]/85 px-4 py-2.5 font-display tracking-[0.06em] no-underline"
+          >
+            <Frame />← Retour au tableau
           </Link>
           <TradeBadge status={status} />
         </span>
-        <span className="text-zinc-500">
-          Ligue {payload.league} · données{" "}
-          {new Date(payload.fetchedAt).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })} · 1 div ={" "}
-          {fmt(payload.divineChaos)}c
+        <span className="text-dim">
+          Ligue <b className="text-cream">{payload.league}</b> · données{" "}
+          {new Date(payload.fetchedAt).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })} ·{" "}
+          <span className="num">
+            1 div = <b className="text-cream">{fmt(payload.divineChaos)}c</b>
+          </span>
         </span>
       </nav>
       <OpportunityDetail
         o={o}
-        runs={runs ?? 1}
-        budgetMode={runs !== undefined}
+        runs={n}
+        setRuns={setN}
+        budgetMode={runs !== undefined && n === runs}
         payload={payload}
         verification={states[o.id]}
         verifiable={verifiable}
         links={links}
         onVerify={() => verify(o.id)}
+        onOpenLinks={() => setLinksOpen(true)}
       />
+      {linksOpen && <TradeLinksModal title={o.label} links={links} onClose={() => setLinksOpen(false)} />}
     </div>
   );
 }

@@ -5,6 +5,8 @@ export interface PriceEntry {
   liquidity: number;
   liquidityKind: "volumeChaos" | "listings";
   trendPct?: number;
+  /** Variation cumulée (%) jour par jour sur 7 jours (sparkline poe.ninja), null = jour sans donnée. */
+  trendSeries?: (number | null)[];
   source: "exchange" | "stash";
   category: string;
   detailsId?: string;

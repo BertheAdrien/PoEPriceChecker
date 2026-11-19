@@ -19,6 +19,8 @@ export interface DashboardPayload {
   trade: Record<string, string>;
   /** id d'opportunité -> liens trade filtrés (mêmes filtres que la vérification). */
   tradeLinks: Record<string, TradeLink[]>;
+  /** nom d'item -> catégorie poe.ninja (couleur de l'item dans l'UI). */
+  categories: Record<string, string>;
 }
 
 export async function buildPayload(): Promise<DashboardPayload> {
@@ -29,10 +31,12 @@ export async function buildPayload(): Promise<DashboardPayload> {
   for (const r of recipes) if (r.vendor) vendors[r.id] = r.vendor;
   const trade: Record<string, string> = {};
   const tradeLinks: Record<string, TradeLink[]> = {};
+  const categories: Record<string, string> = {};
   for (const o of res.opportunities) {
     tradeLinks[o.id] = buildOpportunityLinks(o, prices.league, (n) => prices.get(n));
     for (const i of [...o.inputs, ...o.outputs]) {
       const e = prices.get(i.item);
+      if (e) categories[i.item] = e.category;
       const url = e && buildTradeUrl(prices.league, e);
       if (url) trade[i.item] = url;
     }
@@ -49,5 +53,6 @@ export async function buildPayload(): Promise<DashboardPayload> {
     vendors,
     trade,
     tradeLinks,
+    categories,
   };
 }

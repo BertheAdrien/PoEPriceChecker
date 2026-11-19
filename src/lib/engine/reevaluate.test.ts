@@ -60,3 +60,21 @@ describe("reevaluateWithOverrides", () => {
     expect(r.id).toBe(o.id);
   });
 });
+
+describe("tendance 7 j (sparkline)", () => {
+  const series = [null, 0, 2.5, -1, 4, 6, 8.2];
+  const prices = idx([["Red Dream", 400], ["Flesh", 10], ["Red Nightmare", 1600]]);
+  prices.entries.set("Red Nightmare", { ...prices.entries.get("Red Nightmare")!, trendPct: 8.2, trendSeries: series });
+
+  it("reprend la série du premier item vendu", () => {
+    const r = evaluateRecipe(recipe, prices);
+    if (!r.ok) throw new Error("setup");
+    expect(r.opportunity.trendPct).toBe(8.2);
+    expect(r.opportunity.trendSeries).toEqual(series);
+  });
+  it("conservée après vérification trade", () => {
+    const r = evaluateRecipe(recipe, prices);
+    if (!r.ok) throw new Error("setup");
+    expect(reevaluateWithOverrides(r.opportunity, new Map([["Red Dream", 500]]), 200).trendSeries).toEqual(series);
+  });
+});

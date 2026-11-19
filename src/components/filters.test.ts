@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Opportunity } from "@/lib/engine/types";
-import { num, passesPrice, passesStatic, planFor, type Filters } from "./filters";
+import { ESSENCE_OIL, filterKind, num, passesPrice, passesStatic, planFor, type Filters } from "./filters";
 
 const base: Filters = { kind: "all", showConditional: false, minMarginPct: 0, minProfit: 0 };
 
@@ -66,6 +66,40 @@ describe("marge, type, conditionnelles", () => {
     const cond = { ...cheap, conditional: true } as Opportunity;
     expect(passes(cond, {})).toBe(false);
     expect(passes(cond, { showConditional: true })).toBe(true);
+  });
+});
+
+describe("essences et huiles (groupe dédié)", () => {
+  const essence = {
+    ...cheap,
+    id: "ess",
+    kind: "vendor_recipe",
+    inputs: [{ item: "Shrieking Essence of Doubt", qty: 3 }],
+    outputs: [{ item: "Deafening Essence of Doubt", qty: 1 }],
+  } as unknown as Opportunity;
+  const mixed = {
+    ...essence,
+    id: "mixed",
+    inputs: [{ item: "Shrieking Essence of Doubt", qty: 3 }, { item: "Orb of Fusing", qty: 1 }],
+  } as unknown as Opportunity;
+  const categories = {
+    "Shrieking Essence of Doubt": "Essence",
+    "Deafening Essence of Doubt": "Essence",
+    "Orb of Fusing": "Currency",
+  };
+  const kinds = (o: Opportunity, kind: string) => passesStatic(o, { ...base, kind }, categories);
+
+  it("que des essences/huiles → filtre dédié, plus dans « Recette vendeur »", () => {
+    expect(filterKind(essence, categories)).toBe(ESSENCE_OIL);
+    expect(kinds(essence, ESSENCE_OIL)).toBe(true);
+    expect(kinds(essence, "vendor_recipe")).toBe(false);
+  });
+  it("un autre item dans la recette → type d'origine", () => {
+    expect(filterKind(mixed, categories)).toBe("vendor_recipe");
+    expect(kinds(mixed, "vendor_recipe")).toBe(true);
+  });
+  it("catégories inconnues → type d'origine", () => {
+    expect(filterKind(essence)).toBe("vendor_recipe");
   });
 });
 

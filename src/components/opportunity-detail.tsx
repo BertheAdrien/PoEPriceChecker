@@ -1,10 +1,14 @@
+"use client";
+
+import { useState } from "react";
 import type { Opportunity, PricedItem } from "@/lib/engine/types";
 import type { DashboardPayload } from "@/lib/payload";
 import type { TradeLink } from "@/lib/trade/links";
 import type { VerifiedItem, VerifyResult } from "@/lib/trade/types";
-import { fmt, fmtProfit } from "./format";
+import { fmt, fmtSigned } from "./format";
 import { KIND_LABELS } from "./labels";
 import type { VerifyState } from "./verify";
+import { Divider, FalseStamp, itemColor, Panel, RuneSpinner } from "./ui/rune";
 
 function where(o: Opportunity, vendors: Record<string, string>): string {
   if (o.steps?.length) {
@@ -23,224 +27,338 @@ function where(o: Opportunity, vendors: Record<string, string>): string {
   }
 }
 
-function ItemName({ i, links, role }: { i: PricedItem; links: TradeLink[]; role: "input" | "output" }) {
+function ItemName({ i, links, role, category }: { i: PricedItem; links: TradeLink[]; role: "input" | "output"; category?: string }) {
   const url = links.find((l) => l.role === role && l.item === i.item)?.url;
+  const color = itemColor(category);
   return url ? (
-    <a href={url} target="_blank" rel="noreferrer" className="text-amber-400 underline">
+    <a href={url} target="_blank" rel="noreferrer" className="font-medium hover:underline" style={{ color }}>
       {i.item} ↗
     </a>
   ) : (
-    <>{i.item}</>
+    <span className="font-medium" style={{ color }}>
+      {i.item}
+    </span>
   );
 }
 
-function Stat({ label, children }: { label: string; children: React.ReactNode }) {
+function Stat({ label, children, sub, hot }: { label: string; children: React.ReactNode; sub?: React.ReactNode; hot?: boolean }) {
   return (
     <div>
-      <dt className="text-xs text-zinc-500">{label}</dt>
-      <dd className="text-base font-semibold text-zinc-100">{children}</dd>
+      <dt className="font-display text-xs tracking-[0.12em] text-muted">{label}</dt>
+      <dd className={`num mt-1.5 text-[32px] leading-tight font-semibold ${hot ? "text-molten" : "text-cream"}`}>{children}</dd>
+      {sub && <dd className="num mt-0.5 text-xs text-faint">{sub}</dd>}
     </div>
   );
 }
 
-function Threshold({ value, bad }: { value?: number; bad: boolean }) {
-  if (bad || value === undefined || value <= 0) return <span className="text-red-400">non rentable</span>;
-  return <>{fmt(value)}c</>;
+/** Jauge de seuil : zone rentable (braise) et prix actuel (repère blanc), sur une échelle propre à la ligne. */
+function Gauge({ current, limit, sell }: { current: number; limit: number; sell: boolean }) {
+  const max = Math.max(current, limit) * 1.15;
+  const a = sell ? (limit / max) * 100 : 0;
+  const b = sell ? 100 : (limit / max) * 100;
+  return (
+    <span className="relative h-2 flex-1 bg-edge-soft" aria-hidden>
+      <span
+        className="absolute inset-y-0 bg-gradient-to-r from-ember/35 to-flame/75 shadow-[0_0_8px_rgb(255_120_40/0.4)]"
+        style={{ left: `${a}%`, width: `${b - a}%` }}
+      />
+      <span
+        className="absolute -top-1 h-4 w-[3px] bg-white shadow-[0_0_8px_#fff]"
+        style={{ left: `calc(${(current / max) * 100}% - 1px)` }}
+      />
+    </span>
+  );
 }
+
+function Threshold({ current, value, bad, sell }: { current: number; value?: number; bad: boolean; sell: boolean }) {
+  if (bad || value === undefined || value <= 0) return <span className="text-danger">non rentable</span>;
+  return (
+    <span className="flex items-center gap-3">
+      <Gauge current={current} limit={value} sell={sell} />
+      <span className="num min-w-[4.5rem] text-right text-peach">{fmt(value)}c</span>
+    </span>
+  );
+}
+
+const TH = "font-display text-[11px] tracking-[0.12em] text-muted";
+const SHOP_COLS = "grid-cols-[minmax(0,1.5fr)_70px_110px_minmax(0,1.3fr)]";
 
 export function OpportunityDetail({
   o,
   runs,
+  setRuns,
   budgetMode,
   payload,
   verification,
   verifiable,
   links,
   onVerify,
+  onOpenLinks,
 }: {
   o: Opportunity;
   runs: number;
+  setRuns: (n: number) => void;
   budgetMode: boolean;
-  payload: Pick<DashboardPayload, "vendors" | "divineChaos">;
+  payload: Pick<DashboardPayload, "vendors" | "divineChaos" | "categories">;
   verification?: VerifyState;
   verifiable: boolean;
   links: TradeLink[];
   onVerify: () => void;
+  onOpenLinks: () => void;
 }) {
+  // Saisie en cours du nombre de runs (null = afficher la valeur courante) : un champ vide ou « 0 »
+  // reste affiché pendant la frappe, sans changer les quantités ; il revient à la valeur valide en sortie.
+  const [runsDraft, setRunsDraft] = useState<string | null>(null);
   const unprofitable = o.profitChaos <= 0;
-  const th = "px-2 py-1 text-left text-xs uppercase text-zinc-400";
   const vr = verification?.status === "done" && verification.result.verified ? verification.result.opportunity : undefined;
   const eff = vr ?? o;
+  const dc = payload.divineChaos;
+  const perRun = fmtSigned(eff.profitChaos, dc);
+  const totalRuns = fmtSigned(eff.profitChaos * runs, dc);
+  const costDiv = eff.costChaos >= dc ? `${fmt(eff.costChaos / dc)} div` : undefined;
+  const stepBtn =
+    "size-11 border border-edge-strong bg-[#1a110b] text-xl text-cream transition hover:shadow-[0_0_22px_rgb(255_120_40/0.45)] disabled:opacity-40";
   return (
-    <section className="flex flex-col gap-4 text-sm">
-      <div className="rounded-lg border border-zinc-800 bg-zinc-900/60 p-4">
-        <p className="mb-1 text-xs uppercase text-zinc-500">{KIND_LABELS[o.kind]}</p>
-        <h2 className="mb-3 text-lg font-semibold text-zinc-100">{o.label}</h2>
-        <dl className="flex flex-wrap gap-x-8 gap-y-2">
-          <Stat label={vr ? "Marge (trade)" : "Marge"}>
-            <span className={eff.marginPct > 0 ? "text-emerald-400" : "text-red-400"}>
+    <section className="flex flex-col gap-6">
+      <Panel
+        corners
+        rich
+        className="px-8 py-7"
+        style={{ background: "radial-gradient(90% 120% at 50% -20%, rgb(255 110 30 / 0.18), transparent 60%), linear-gradient(180deg, #1a120c, #0f0a07)" }}
+      >
+        <div className="flex flex-wrap items-end justify-between gap-6">
+          <div className="flex flex-col gap-1.5">
+            <p className="font-display text-xs tracking-[0.3em] text-muted uppercase">{KIND_LABELS[o.kind]}</p>
+            <h2 className="font-display text-[40px] leading-tight font-bold text-unique [text-shadow:0_0_26px_rgb(255_120_40/0.45)]">
+              {o.outputs.map((i) => i.item).join(" + ")}
+            </h2>
+            <p className="flavour text-[19px] text-muted">{o.label}</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="font-display text-xs tracking-[0.14em] text-muted">Runs</span>
+            <button
+              className={stepBtn}
+              onClick={() => {
+                setRunsDraft(null);
+                setRuns(Math.max(1, runs - 1));
+              }}
+              disabled={runs <= 1}
+              aria-label="Un run de moins"
+            >
+              −
+            </button>
+            <input
+              aria-label="Nombre de runs"
+              inputMode="numeric"
+              value={runsDraft ?? String(runs)}
+              onChange={(e) => {
+                const v = e.target.value.replace(/\D/g, "").slice(0, 5);
+                setRunsDraft(v);
+                const n = Number.parseInt(v, 10);
+                if (n >= 1) setRuns(n);
+              }}
+              onBlur={() => setRunsDraft(null)}
+              onFocus={(e) => e.target.select()}
+              className="num h-11 w-20 border-0 border-b border-[#8a5a2a] bg-transparent text-center text-[28px] font-semibold text-peach focus:border-flame focus:outline-none"
+            />
+            <button
+              className={stepBtn}
+              onClick={() => {
+                setRunsDraft(null);
+                setRuns(runs + 1);
+              }}
+              aria-label="Un run de plus"
+            >
+              +
+            </button>
+          </div>
+        </div>
+        <Divider className="my-5" />
+        <dl className="grid grid-cols-2 gap-5 lg:grid-cols-4">
+          <Stat label={vr ? "Marge (trade)" : "Marge"} hot={eff.marginPct >= 150} sub={vr && `ninja ${fmt(o.marginPct)} %`}>
+            <span className={eff.marginPct >= 150 ? undefined : eff.marginPct > 0 ? "text-flame" : "text-danger"}>
               {eff.marginPct > 0 ? "+" : ""}
-              {fmt(eff.marginPct)}%
+              {fmt(eff.marginPct)} %
             </span>
-            {vr && <span className="ml-2 text-xs text-zinc-500">ninja {fmt(o.marginPct)}%</span>}
           </Stat>
-          <Stat label="Profit / run">{fmtProfit(eff.profitChaos, payload.divineChaos)}</Stat>
-          <Stat label="Coût / run">{fmt(eff.costChaos)}c</Stat>
-          {runs > 1 && <Stat label={`Profit (${runs} runs)`}>{fmtProfit(eff.profitChaos * runs, payload.divineChaos)}</Stat>}
+          <Stat label="Profit / run" sub={perRun.sub}>
+            <span className={eff.profitChaos > 0 ? undefined : "text-danger"}>{perRun.main}</span>
+          </Stat>
+          <Stat label="Coût / run" sub={costDiv}>
+            {fmt(eff.costChaos)}c
+          </Stat>
+          <Stat label={`Profit (${runs} run${runs > 1 ? "s" : ""})`} sub={totalRuns.sub}>
+            <span className={eff.profitChaos > 0 ? "text-glow [text-shadow:0_0_16px_rgb(255_170_70/0.5)]" : "text-danger"}>
+              {totalRuns.main}
+            </span>
+          </Stat>
         </dl>
         {(o.conditional || o.unverified) && (
-          <p className="mt-3 text-xs text-amber-300">
-            {o.conditional && "Opportunité conditionnelle. "}
-            {o.unverified && "Recette non vérifiée en jeu [?]."}
+          <p className="mt-5 flex items-start gap-3 bg-flame/[0.07] px-4 py-3 text-[#e8d6b8] shadow-[inset_3px_0_0_#c8a35a]">
+            <span className="font-display text-[#e2b866]">!</span>
+            <span>
+              {o.conditional && "Opportunité conditionnelle. "}
+              {o.unverified && "Recette non vérifiée en jeu [?]."}
+            </span>
           </p>
         )}
-      </div>
-      <div className="rounded-lg border border-amber-500/40 bg-zinc-900 p-4">
-      <h3 className="mb-2 font-semibold">Liste de courses</h3>
-      <p className="mb-3 text-zinc-400">
-        Où convertir : <span className="text-zinc-200">{where(o, payload.vendors)}</span>
-        {" · "}Quantités pour {runs} run{runs > 1 ? "s" : ""}
-        {budgetMode ? " (selon le budget)" : ""}.
-      </p>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[32rem]">
-          <thead>
-            <tr>
-              <th className={th}>Acheter</th>
-              <th className={th}>Qté</th>
-              <th className={th}>Prix actuel</th>
-              <th className={th}>Prix d&apos;achat max</th>
-            </tr>
-          </thead>
-          <tbody>
+      </Panel>
+
+      <Panel corners className="bg-[#100a07]/95 px-7 py-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h3 className="font-display text-[22px] font-bold tracking-[0.08em] text-cream">Liste de courses</h3>
+            <p className="mt-1.5 text-dim">
+              Où convertir : <span className="text-cream">{where(o, payload.vendors)}</span>
+              {" · "}Quantités pour {runs} run{runs > 1 ? "s" : ""}
+              {budgetMode ? " (selon le budget)" : ""}.
+            </p>
+          </div>
+          {links.length > 0 && (
+            <button onClick={onOpenLinks} className="btn-fire px-5 py-3 font-display font-bold tracking-wide">
+              Liens trade ↗
+            </button>
+          )}
+        </div>
+
+        <div className="mt-5 overflow-x-auto">
+          <div className="flex min-w-[46rem] flex-col">
+            <div className={`grid ${SHOP_COLS} gap-4 border-b border-[#3a2414] px-1 py-2.5 ${TH}`}>
+              <span>Acheter</span>
+              <span className="text-right">Qté</span>
+              <span className="text-right">Prix actuel</span>
+              <span>Prix d&apos;achat max</span>
+            </div>
             {o.inputs.map((i) => (
-              <tr key={i.item} className="border-t border-zinc-800">
-                <td className="px-2 py-1">
-                  <ItemName i={i} links={links} role="input" />
+              <div key={i.item} className={`fire-row grid ${SHOP_COLS} items-center gap-4 border-b border-edge-soft px-1 py-3.5`}>
+                <span className="flex flex-wrap items-baseline gap-2.5">
+                  <ItemName i={i} links={links} role="input" category={payload.categories[i.item]} />
                   {links.some((l) => l.role === "input" && l.item === i.item) && (
-                    <span className="ml-2 text-[10px] text-zinc-500">
+                    <span className="text-[11px] text-faint">
                       {o.corruptedInputs === "allowed" ? "corrompu OK" : "non corrompu requis"}
                     </span>
                   )}
-                </td>
-                <td className="px-2 py-1">{i.qty * runs}</td>
-                <td className="px-2 py-1">{fmt(i.unitChaos)}c</td>
-                <td className="px-2 py-1"><Threshold value={i.maxBuyChaos} bad={unprofitable} /></td>
-              </tr>
+                </span>
+                <span className="num text-right text-cream">{i.qty * runs}</span>
+                <span className="num text-right text-cream">{fmt(i.unitChaos)}c</span>
+                <Threshold current={i.unitChaos} value={i.maxBuyChaos} bad={unprofitable} sell={false} />
+              </div>
             ))}
-          </tbody>
-        </table>
-        <table className="mt-3 w-full min-w-[32rem]">
-          <thead>
-            <tr>
-              <th className={th}>Vendre</th>
-              <th className={th}>Qté</th>
-              <th className={th}>Prix actuel</th>
-              <th className={th}>Prix de vente min</th>
-            </tr>
-          </thead>
-          <tbody>
+            <div className={`grid ${SHOP_COLS} gap-4 border-b border-[#3a2414] px-1 pt-6 pb-2.5 ${TH}`}>
+              <span>Vendre</span>
+              <span className="text-right">Qté</span>
+              <span className="text-right">Prix actuel</span>
+              <span>Prix de vente min</span>
+            </div>
             {o.outputs.map((i) => (
-              <tr key={i.item} className="border-t border-zinc-800">
-                <td className="px-2 py-1"><ItemName i={i} links={links} role="output" /></td>
-                <td className="px-2 py-1">{i.qty * runs}</td>
-                <td className="px-2 py-1">{fmt(i.unitChaos)}c</td>
-                <td className="px-2 py-1"><Threshold value={i.minSellChaos} bad={unprofitable} /></td>
-              </tr>
+              <div key={i.item} className={`fire-row grid ${SHOP_COLS} items-center gap-4 border-b border-edge-soft px-1 py-3.5`}>
+                <span>
+                  <ItemName i={i} links={links} role="output" category={payload.categories[i.item]} />
+                </span>
+                <span className="num text-right text-cream">{i.qty * runs}</span>
+                <span className="num text-right text-cream">{fmt(i.unitChaos)}c</span>
+                <Threshold current={i.unitChaos} value={i.minSellChaos} bad={unprofitable} sell />
+              </div>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </div>
+        </div>
+        <p className="mt-4 text-xs text-faint">
+          Barre : zone rentable en braise, prix actuel en blanc. Prix seuils : au-delà, le profit tombe à 0 (les autres prix
+          restant fixes). Currency : à acheter chez Faustus (Currency Exchange en jeu), pas de lien trade.
+        </p>
+      </Panel>
+
       {verifiable && (
-        <div className="mt-4 border-t border-zinc-800 pt-3">
-          <div className="mb-2 flex flex-wrap items-center gap-3">
+        <Panel corners className="bg-[#100a07]/95 px-7 py-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h3 className="font-display text-[22px] font-bold tracking-[0.08em] text-cream">Vérification trade</h3>
+              <p className="mt-1.5 text-dim">
+                Médiane des 5 annonces securable les moins chères, hors Foulborn (file séquentielle : quelques secondes).
+              </p>
+            </div>
             <button
               onClick={onVerify}
               disabled={verification?.status === "loading"}
-              className="rounded border border-amber-500/60 px-2 py-0.5 text-amber-300 hover:bg-zinc-800 disabled:opacity-50"
+              className="btn-ghost inline-flex items-center gap-2 px-5 py-3 font-display text-sm tracking-wide disabled:border-edge disabled:text-faint"
             >
+              {verification?.status === "loading" && <RuneSpinner size={14} />}
               {verification?.status === "loading" ? "Vérification…" : "Vérifier sur le trade"}
             </button>
-            <span className="text-xs text-zinc-500">
-              Médiane des 5 annonces securable les moins chères, hors Foulborn (file séquentielle : quelques secondes).
-            </span>
           </div>
-          {verification?.status === "error" && <p className="text-red-400">Échec : {verification.message}</p>}
-          {verification?.status === "done" && (
-            <VerifiedTable r={verification.result} divineChaos={payload.divineChaos} />
+          {verification?.status === "error" && (
+            <p className="mt-4 flex items-start gap-3 bg-danger/10 px-4 py-3 text-[#ffb3a8] shadow-[inset_3px_0_0_#ff6b5a]">
+              Échec : {verification.message}
+            </p>
           )}
-        </div>
+          {verification?.status === "done" && <VerifiedTable r={verification.result} divineChaos={dc} categories={payload.categories} />}
+        </Panel>
       )}
-      <p className="mt-3 text-xs text-zinc-500">
-        Prix seuils : au-delà, le profit tombe à 0 (les autres prix restant fixes). Currency : à acheter chez Faustus
-        (Currency Exchange en jeu), pas de lien trade.
-      </p>
-      </div>
     </section>
   );
 }
 
-function VerifiedTable({ r, divineChaos }: { r: VerifyResult; divineChaos: number }) {
-  const th = "px-2 py-1 text-left text-xs uppercase text-zinc-400";
+const VERIF_COLS = "grid-cols-[minmax(0,1.4fr)_170px_100px_150px_130px_70px]";
+
+function VerifiedTable({ r, divineChaos, categories }: { r: VerifyResult; divineChaos: number; categories: Record<string, string> }) {
   const v = r.opportunity;
   const row = (i: VerifiedItem) => (
-    <tr key={`${i.role}-${i.item}`} className="border-t border-zinc-800">
-      <td className="px-2 py-1">{i.item}</td>
-      <td className="px-2 py-1 text-zinc-400">
+    <div key={`${i.role}-${i.item}`} className={`fire-row grid ${VERIF_COLS} items-center gap-3.5 border-b border-edge-soft px-1 py-3`}>
+      <span style={{ color: itemColor(categories[i.item]) }}>{i.item}</span>
+      <span className="text-dim">
         {i.role === "input" ? "achat" : "vente"}
         {i.status !== "unverifiable" && ` · ${i.corrupted === "any" ? "corrompu OK" : "non corrompu"}`}
-      </td>
-      <td className="px-2 py-1">{fmt(i.ninjaChaos)}c</td>
-      <td className="px-2 py-1">
+      </span>
+      <span className="num text-right text-dim">{fmt(i.ninjaChaos)}c</span>
+      <span className="num text-right">
         {i.tradeChaos !== undefined ? (
-          <span className={i.tradeChaos > i.ninjaChaos * 1.2 ? "text-red-400" : undefined}>{fmt(i.tradeChaos)}c</span>
+          <span className={i.tradeChaos > i.ninjaChaos * 1.2 ? "text-danger" : "text-cream"}>{fmt(i.tradeChaos)}c</span>
         ) : i.status === "no_listings" ? (
-          <span className="text-amber-400">aucune annonce</span>
+          <span className="text-flame">aucune annonce</span>
         ) : (
-          <span className="text-zinc-500">exchange (poe.ninja)</span>
+          <span className="text-faint">exchange (poe.ninja)</span>
         )}
-      </td>
-      <td className="px-2 py-1">{i.listings !== undefined ? `${i.listings} (${i.sampled} utilisées)` : "–"}</td>
-      <td className="px-2 py-1">
+      </span>
+      <span className="num text-right text-dim">{i.listings !== undefined ? `${i.listings} (${i.sampled} utilisées)` : "–"}</span>
+      <span>
         {i.tradeUrl && (
-          <a href={i.tradeUrl} target="_blank" rel="noreferrer" className="text-amber-400 underline">
+          <a href={i.tradeUrl} target="_blank" rel="noreferrer">
             trade ↗
           </a>
         )}
-      </td>
-    </tr>
+      </span>
+    </div>
   );
+  const profit = fmtSigned(v.profitChaos, divineChaos);
   return (
-    <div className="overflow-x-auto">
-      <p className="mb-2">
+    <div className="mt-5">
+      <p className="mb-2 flex flex-wrap items-center gap-3 text-[15px]">
         {r.verified ? (
           <>
             Marge vérifiée :{" "}
-            <b className={v.profitChaos > 0 ? "text-emerald-400" : "text-red-400"}>
+            <b className={`num text-lg ${v.profitChaos > 0 ? "text-molten" : "text-danger"}`}>
               {v.marginPct > 0 ? "+" : ""}
-              {fmt(v.marginPct)}% ({fmtProfit(v.profitChaos, divineChaos)})
+              {fmt(v.marginPct)} % ({profit.main})
             </b>
-            {v.profitChaos <= 0 && (
-              <span className="ml-2 rounded bg-red-500/20 px-1.5 py-0.5 text-[10px] text-red-300">faux positif</span>
-            )}
+            {v.profitChaos <= 0 && <FalseStamp />}
           </>
         ) : (
-          <span className="text-amber-400">Aucun prix trade exploitable : prix poe.ninja conservés.</span>
+          <span className="text-flame">Aucun prix trade exploitable : prix poe.ninja conservés.</span>
         )}
       </p>
-      <table className="w-full min-w-[40rem]">
-        <thead>
-          <tr>
-            <th className={th}>Item</th>
-            <th className={th}>Rôle</th>
-            <th className={th}>poe.ninja</th>
-            <th className={th}>Trade</th>
-            <th className={th}>Annonces</th>
-            <th className={th}>Lien</th>
-          </tr>
-        </thead>
-        <tbody>{r.items.map(row)}</tbody>
-      </table>
+      <div className="overflow-x-auto">
+        <div className="min-w-[52rem]">
+          <div className={`grid ${VERIF_COLS} gap-3.5 border-b border-[#3a2414] px-1 py-2.5 ${TH}`}>
+            <span>Item</span>
+            <span>Rôle</span>
+            <span className="text-right">poe.ninja</span>
+            <span className="text-right">Trade</span>
+            <span className="text-right">Annonces</span>
+            <span>Lien</span>
+          </div>
+          {r.items.map(row)}
+        </div>
+      </div>
     </div>
   );
 }

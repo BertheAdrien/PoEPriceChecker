@@ -77,6 +77,7 @@ export function evaluateTrade(
         sources: spec.sources,
         steps: spec.steps,
         trendPct: prices.get(spec.outputs[0].item)?.trendPct,
+        trendSeries: prices.get(spec.outputs[0].item)?.trendSeries,
       },
       ins.items,
       outs.items,
@@ -88,7 +89,7 @@ export function evaluateTrade(
 
 type OpportunityMeta = Pick<
   Opportunity,
-  "id" | "kind" | "label" | "conditional" | "corruptedInputs" | "unverified" | "sources" | "steps" | "trendPct"
+  "id" | "kind" | "label" | "conditional" | "corruptedInputs" | "unverified" | "sources" | "steps" | "trendPct" | "trendSeries"
 >;
 
 /** Coût, revenu, marge, seuils et liquidité à partir d'items déjà valorisés (logique commune). */
@@ -150,9 +151,9 @@ export function reevaluateWithOverrides(
     if (p !== undefined && Number.isFinite(p) && p > 0) copy.unitChaos = p;
     return copy;
   };
-  const { id, kind, label, conditional, corruptedInputs, unverified, sources, steps, trendPct } = o;
+  const { id, kind, label, conditional, corruptedInputs, unverified, sources, steps, trendPct, trendSeries } = o;
   return assemble(
-    { id, kind, label, conditional, corruptedInputs, unverified, sources, steps, trendPct },
+    { id, kind, label, conditional, corruptedInputs, unverified, sources, steps, trendPct, trendSeries },
     o.inputs.map(reprice),
     o.outputs.map(reprice),
     divineChaos,

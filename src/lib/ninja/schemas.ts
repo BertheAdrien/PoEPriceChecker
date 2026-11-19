@@ -12,7 +12,10 @@ const exchangeItem = z.object({
   detailsId: z.string().nullish(),
 });
 
-const sparkline = z.object({ totalChange: z.number().nullish() }).nullish();
+/** Variation sur 7 jours : `totalChange` (%) et `data` = 7 points de variation cumulée (%), null si inconnu. */
+const sparkline = z
+  .object({ totalChange: z.number().nullish(), data: z.array(z.number().nullable()).nullish() })
+  .nullish();
 
 export const exchangeOverviewSchema = z.object({
   core: z.object({
