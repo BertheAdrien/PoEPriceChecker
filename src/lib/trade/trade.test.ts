@@ -153,8 +153,8 @@ describe("searchPrice / verifyOpportunity (sans réseau)", () => {
     expect(v.opportunity.marginPct).toBeLessThan(10);
   });
 
-  it("recette vendor_recipe : entrées sans filtre de corruption, sorties toujours non corrompues", async () => {
-    const base = evaluateRecipe(recipe({ kind: "vendor_recipe" }), index);
+  it("recette marquée corruptedInputs: allowed : entrées sans filtre de corruption, sorties toujours non corrompues", async () => {
+    const base = evaluateRecipe(recipe({ kind: "vendor_recipe", corruptedInputs: "allowed" }), index);
     if (!base.ok) throw new Error("setup");
     expect(base.opportunity.corruptedInputs).toBe("allowed");
     const deps = makeDeps();

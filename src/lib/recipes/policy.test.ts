@@ -4,7 +4,7 @@ import { corruptedInputPolicy } from "./policy";
 
 describe("corruptedInputPolicy", () => {
   it("défaut selon le kind", () => {
-    expect(corruptedInputPolicy({ kind: "vendor_recipe" })).toBe("allowed");
+    expect(corruptedInputPolicy({ kind: "vendor_recipe" })).toBe("forbidden");
     expect(corruptedInputPolicy({ kind: "other" })).toBe("forbidden");
     for (const kind of ["div_card", "fragment_set", "vendor_shop"] as const) {
       expect(corruptedInputPolicy({ kind })).toBe("forbidden");

@@ -7,7 +7,8 @@ const FORBIDS_CORRUPTED = /corrupted items? (cannot|can't|can not) be used|must 
  * Les entrées corrompues sont-elles utilisables dans cette recette ?
  * - champ `corruptedInputs` explicite (YAML) : il l'emporte ;
  * - notes du wiki interdisant les objets corrompus : "forbidden" ;
- * - `vendor_recipe` : les objets sont vendus tels quels au PNJ -> "allowed" ;
+ * - par défaut "forbidden" pour TOUTES les recettes (prudent : acheter un corrompu inutilisable = perte sèche) ;
+ *   une recette vendeur vérifiée qui accepte les corrompus doit être marquée `corruptedInputs: allowed` dans le YAML ;
  * - `other` (objet appliqué sur un autre, ex. Flesh of Xesht sur The Red Dream) : la currency ne
  *   s'utilise pas sur un objet corrompu -> "forbidden" ;
  * - div_card / fragment_set / vendor_shop : entrées de l'exchange, sans objet -> "forbidden" (prudent).
@@ -17,5 +18,5 @@ export function corruptedInputPolicy(
 ): CorruptedInputs {
   if (recipe.corruptedInputs) return recipe.corruptedInputs;
   if (recipe.notes && FORBIDS_CORRUPTED.test(recipe.notes)) return "forbidden";
-  return recipe.kind === "vendor_recipe" ? "allowed" : "forbidden";
+  return "forbidden";
 }
