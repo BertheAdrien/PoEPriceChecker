@@ -5,8 +5,8 @@ import { z } from "zod";
 import { recipeListSchema } from "./schema";
 import type { Recipe } from "./types";
 
-const DEFAULT_YAML = path.join(process.cwd(), "data", "recipes.yaml");
-const DEFAULT_WIKI = path.join(process.cwd(), "data", "generated", "wiki-recipes.json");
+const DEFAULT_YAML = path.join(/*turbopackIgnore: true*/ process.cwd(), "data", "recipes.yaml");
+const DEFAULT_WIKI = path.join(/*turbopackIgnore: true*/ process.cwd(), "data", "generated", "wiki-recipes.json");
 
 /** Parse + valide le contenu YAML des recettes manuelles. Lève une ZodError si invalide. */
 export function parseRecipesYaml(text: string): Recipe[] {
@@ -14,13 +14,13 @@ export function parseRecipesYaml(text: string): Recipe[] {
 }
 
 export function loadYamlRecipes(file = DEFAULT_YAML): Recipe[] {
-  return parseRecipesYaml(fs.readFileSync(file, "utf8"));
+  return parseRecipesYaml(fs.readFileSync(/*turbopackIgnore: true*/ file, "utf8"));
 }
 
 /** Recettes importées du wiki ; liste vide si le fichier n'existe pas encore. */
 export function loadWikiRecipes(file = DEFAULT_WIKI): Recipe[] {
-  if (!fs.existsSync(file)) return [];
-  return recipeListSchema.parse(JSON.parse(fs.readFileSync(file, "utf8")));
+  if (!fs.existsSync(/*turbopackIgnore: true*/ file)) return [];
+  return recipeListSchema.parse(JSON.parse(fs.readFileSync(/*turbopackIgnore: true*/ file, "utf8")));
 }
 
 function signature(r: Recipe): string {
@@ -44,7 +44,7 @@ export function mergeRecipes(yaml: Recipe[], wiki: Recipe[]): Recipe[] {
   return [...byId.values()];
 }
 
-const DEFAULT_OVERRIDES = path.join(process.cwd(), "data", "recipe-overrides.yaml");
+const DEFAULT_OVERRIDES = path.join(/*turbopackIgnore: true*/ process.cwd(), "data", "recipe-overrides.yaml");
 
 const overrideSchema = z.array(
   z.object({
@@ -76,6 +76,6 @@ export function loadRecipes(
 ): Recipe[] {
   const merged = mergeRecipes(loadYamlRecipes(opts.yamlFile), loadWikiRecipes(opts.wikiFile));
   const file = opts.overridesFile ?? DEFAULT_OVERRIDES;
-  if (!fs.existsSync(file)) return merged;
-  return applyOverrides(merged, parseOverridesYaml(fs.readFileSync(file, "utf8")));
+  if (!fs.existsSync(/*turbopackIgnore: true*/ file)) return merged;
+  return applyOverrides(merged, parseOverridesYaml(fs.readFileSync(/*turbopackIgnore: true*/ file, "utf8")));
 }

@@ -102,13 +102,13 @@ export async function buildPriceIndex(
   const lg =
     league ??
     (await withDiskCache(
-      join(baseDir, "_league.json"),
+      join(/*turbopackIgnore: true*/ baseDir, "_league.json"),
       z.string(),
       opts,
       now().getTime(),
       () => getCurrentLeague(opts),
     ));
-  const dir = join(baseDir, safeName(lg));
+  const dir = join(/*turbopackIgnore: true*/ baseDir, safeName(lg));
   const exTypes = opts.exchangeTypes ?? EXCHANGE_TYPES;
   const stTypes = opts.stashTypes ?? STASH_TYPES;
   const key = `${lg}|${exTypes.join(",")}|${stTypes.join(",")}`;

@@ -1,0 +1,14 @@
+# VPS : image construite sur le serveur (deploy/deploy.sh), nginx de l'hôte en frontal HTTPS + mot de passe.
+services:
+  app:
+    image: poe-price-checker:local
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.next/cache:uid=1000,gid=1000
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "127.0.0.1:3020:3000"
