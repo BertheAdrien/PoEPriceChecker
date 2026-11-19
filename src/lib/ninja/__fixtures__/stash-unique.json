@@ -1,0 +1,138 @@
+{
+ "lines": [
+  {
+   "id": 135098,
+   "name": "Foulborn Headhunter",
+   "icon": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQmVsdHMvSGVhZGh1bnRlciIsInciOjIsImgiOjEsInNjYWxlIjoxLCJtdXRhdGVkIjp0cnVlfV0/2a93cbdad2/Headhunter.png",
+   "baseType": "Leather Belt",
+   "variant": "Culling Strike, Minimap Icons",
+   "itemClass": 3,
+   "sparkLine": {
+    "totalChange": 0,
+    "data": []
+   },
+   "chaosValue": 205200,
+   "divineValue": 950,
+   "count": 1,
+   "detailsId": "foulborn-headhunter-culling-strike-minimap-icons-leather-belt",
+   "listingCount": 1
+  },
+  {
+   "id": 135150,
+   "name": "Foulborn Headhunter",
+   "icon": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQmVsdHMvSGVhZGh1bnRlciIsInciOjIsImgiOjEsInNjYWxlIjoxLCJtdXRhdGVkIjp0cnVlfV0/2a93cbdad2/Headhunter.png",
+   "baseType": "Leather Belt",
+   "variant": "Culling Strike",
+   "itemClass": 3,
+   "sparkLine": {
+    "totalChange": 0,
+    "data": []
+   },
+   "chaosValue": 150336,
+   "divineValue": 696,
+   "count": 3,
+   "detailsId": "foulborn-headhunter-culling-strike-leather-belt",
+   "listingCount": 3
+  },
+  {
+   "id": 102015,
+   "name": "Original Sin",
+   "icon": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvUmluZ3MvU2FuY3R1bVNwZWNpYWxVbmlxdWVSaW5nIiwidyI6MSwiaCI6MSwic2NhbGUiOjF9XQ/e0ff1c1c6b/SanctumSpecialUniqueRing.png",
+   "baseType": "Amethyst Ring",
+   "itemClass": 3,
+   "sparkLine": {
+    "totalChange": 16.92,
+    "data": [
+     null,
+     null,
+     null,
+     null,
+     null,
+     0,
+     16.92
+    ]
+   },
+   "chaosValue": 73440,
+   "divineValue": 340,
+   "count": 17,
+   "detailsId": "original-sin-amethyst-ring",
+   "listingCount": 17
+  },
+  {
+   "id": 142076,
+   "name": "Mageblood",
+   "icon": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvQmVsdHMvSW5qZWN0b3JCZWx0IiwidyI6MiwiaCI6MSwic2NhbGUiOjEsInJlbGljIjoxMH1d/af054170cd/InjectorBelt.png",
+   "baseType": "Heavy Belt",
+   "variant": "4 Flasks",
+   "itemClass": 10,
+   "sparkLine": {
+    "totalChange": 195.8,
+    "data": [
+     null,
+     null,
+     0,
+     62.23,
+     88.66,
+     174.4,
+     195.8
+    ]
+   },
+   "chaosValue": 46958,
+   "divineValue": 217.4,
+   "count": 70,
+   "detailsId": "mageblood-4-flasks-heavy-belt",
+   "listingCount": 70
+  },
+  {
+   "id": 999001,
+   "name": "Original Sin",
+   "icon": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvUmluZ3MvU2FuY3R1bVNwZWNpYWxVbmlxdWVSaW5nIiwidyI6MSwiaCI6MSwic2NhbGUiOjF9XQ/e0ff1c1c6b/SanctumSpecialUniqueRing.png",
+   "baseType": "Amethyst Ring",
+   "variant": "Linked",
+   "links": 6,
+   "itemClass": 3,
+   "sparkLine": {
+    "totalChange": 16.92,
+    "data": [
+     null,
+     null,
+     null,
+     null,
+     null,
+     0,
+     16.92
+    ]
+   },
+   "chaosValue": 1,
+   "divineValue": 340,
+   "count": 17,
+   "detailsId": "original-sin-amethyst-ring",
+   "listingCount": 2
+  },
+  {
+   "id": 999002,
+   "name": "Original Sin",
+   "icon": "https://web.poecdn.com/gen/image/WzI1LDE0LHsiZiI6IjJESXRlbXMvUmluZ3MvU2FuY3R1bVNwZWNpYWxVbmlxdWVSaW5nIiwidyI6MSwiaCI6MSwic2NhbGUiOjF9XQ/e0ff1c1c6b/SanctumSpecialUniqueRing.png",
+   "baseType": "Amethyst Ring",
+   "variant": "Alt",
+   "itemClass": 3,
+   "sparkLine": {
+    "totalChange": 16.92,
+    "data": [
+     null,
+     null,
+     null,
+     null,
+     null,
+     0,
+     16.92
+    ]
+   },
+   "chaosValue": 73490,
+   "divineValue": 340,
+   "count": 17,
+   "detailsId": "original-sin-amethyst-ring",
+   "listingCount": 17
+  }
+ ]
+}

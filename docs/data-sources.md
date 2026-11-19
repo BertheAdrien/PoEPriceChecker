@@ -36,9 +36,22 @@ API Cargo : `https://www.poewiki.net/w/api.php?action=cargoquery&format=json&tab
 - ⚠️ **Toujours aliaser `_pageName`** (`fields=_pageName=page,...`), sinon erreur MWException.
 - Exemple vérifié : `tables=acquisition_recipe_parts&fields=_pageName=page,recipe_id,item_name,amount&where=item_name="The Sundered Will"`
 - Contient vendor recipes, cartes de divination → items, etc. À filtrer par type.
+- **Sémantique réelle** : `_pageName` = item PRODUIT ; `description` décrit la sortie ; les `parts` sont les ENTRÉES. Clés de réponse avec espaces (`"recipe id"`), valeurs HTML-échappées.
+- Cartes de divination : table `items` avec `class_id="DivinationCard"` (~470 cartes).
+- Rate limit : Cloudflare renvoie 429 ou une page HTML « Just a moment » (HTTP 200) après ~25 requêtes rapprochées ; l'import réessaie avec backoff (5 s jusqu'à 2 min). Si ça persiste, attendre quelques minutes.
 - Autres tables utiles : `items`, `vendor_rewards` (récompenses de quêtes), `bestiary_recipes`, `blight_crafting_recipes`.
 - Source wikitext d'une page : `action=parse&page=<Nom>&prop=wikitext&format=json&formatversion=2`.
 - ⚠️ Les **taux de la boutique PNJ** (ex. 4 Fusing → 1 Scouring) ne sont pas encore localisés dans une table → `data/recipes.yaml` manuel en attendant.
+
+### Import `npm run import:wiki` (classification)
+~19 300 recettes en entrée, ~620 gardées dans `data/generated/wiki-recipes.json` (172 Ko, une recette par ligne).
+- **Écartées** (~97 %) : sorties aléatoires (description « Random … », « set exchange », « other gems/currencies », « transfigured gem »), « part of sell price », prophéties, corruption, parts contenant du HTML ou de l'or, pages génériques (`Map (Tier N)`), et les **pools** (mêmes entrées + même description menant à plusieurs sorties = tirage au sort).
+  Les ~17 000 lignes `automatic` sont du bruit : chaque carte/fragment y figure comme *résultat possible* d'un tirage.
+- **Kinds** : `vendor_recipe` (description « Vendor recipe »), `div_card` (une seule entrée, présente dans `items` classe DivinationCard), `fragment_set` (une entrée « …Splinter/Shard/Fragment » ×N>1), `other` (le reste : flasques/filets ×3, cosmétiques…).
+- **`conditional: true`** (~136) quand description/notes mentionnent corrupted, link, level, quality, influence, implicit, rarity, any, tier… : la sortie dépend d'une variante, à ignorer ou traiter à part dans le moteur.
+- Id = `<slug du produit>-<recipe_id>` ; `mergeRecipes` écarte aussi une recette wiki de mêmes entrées/sorties qu'une recette YAML (le YAML gagne).
+- ⚠️ Le wiki dit **House of Mirrors ×9 → Mirror of Kalandra** (recette 2) : à confirmer en jeu avant de s'y fier.
+- **Fragments (spike)** — présents : shards → orbes (Chaos, Exalted, Mirror…, ×20), Timeless splinters → emblèmes (×100), Simulacrum Splinter ×300, Ritual Splinter ×100, Crescent Splinter ×10 → The Maven's Writ, Scroll Fragment ×5. **Absents** : splinters de Breach → Breachstone (les pages disent « 100 splinters » mais les breachstones sont non fonctionnelles, revendues contre une Hivebrain Gland : non ajoutées), recettes de scarabées (3 scarabées → 1 aléatoire, non déterministe), invitations, fragments Sacrifice/Mortal.
 
 ## 3. API officielle GGG
 Doc : https://www.pathofexile.com/developer/docs

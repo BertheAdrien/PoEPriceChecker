@@ -8,17 +8,18 @@ Cocher au fur et à mesure. Une étape = une session courte (`/clear` entre deux
 - [x] `git init`, `.gitignore`, premier commit, repo GitHub public
 
 ## Étape 1 — Prix (poe.ninja)
-- [ ] `src/lib/ninja/` : `getLeague()`, `getExchangeOverview(type)`, `getItemOverview(type)` + schémas zod
-- [ ] `buildPriceIndex()` → `Map<name, { chaos, liquidity, trend, source }>`
+- [x] `src/lib/ninja/` : `getLeague()`, `getExchangeOverview(type)`, `getItemOverview(type)` + schémas zod
+- [x] `buildPriceIndex()` → `Map<name, { chaos, liquidity, trend, source }>`
       (exchange : Currency, Fragment, DivinationCard, Scarab/Essence/Oil… ; stash : uniques, BaseType, Invitation…)
-- [ ] Cache mémoire 15 min côté serveur ; tests sur des réponses enregistrées (fixtures réduites)
-- [ ] CLI `npm run price -- "<item>"` (+ `--league`)
+- [x] Cache mémoire 15 min côté serveur ; tests sur des réponses enregistrées (fixtures réduites)
+- [x] CLI `npm run price -- "<item>"` (+ `--league`)
 
 ## Étape 2 — Recettes
-- [ ] Chargement + validation de `data/recipes.yaml` (PNJ, fragments)
-- [ ] `npm run import:wiki` : `acquisition_recipes` + `acquisition_recipe_parts` → `data/generated/wiki-recipes.json`,
+- [x] Chargement + validation de `data/recipes.yaml` (PNJ, fragments)
+- [x] `npm run import:wiki` : `acquisition_recipes` + `acquisition_recipe_parts` → `data/generated/wiki-recipes.json`,
       classées par type : **cartes de divination** (idée 1), **recettes vendeur d'uniques** (idée 2), fragments (idée 3)
-- [ ] Spike : vérifier si splinters → breachstone, emblèmes, invitations et scarabées sont dans le wiki ; sinon les ajouter au YAML
+- [x] Spike : vérifier si splinters → breachstone, emblèmes, invitations et scarabées sont dans le wiki ; sinon les ajouter au YAML
+      → résultat : emblèmes Timeless, Simulacrum, Ritual Vessel, Maven's Writ, shards → orbes présents ; breachstones (non fonctionnelles), scarabées (tirage aléatoire), invitations absents/non modélisables (cf. `docs/data-sources.md`)
 
 ## Étape 3 — Moteur
 - [ ] `evaluateRecipe()` : coût, revenu, `marginPct`, `profitChaos`, liquidité

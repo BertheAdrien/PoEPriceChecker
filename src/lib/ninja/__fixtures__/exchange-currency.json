@@ -1,0 +1,133 @@
+{
+ "core": {
+  "primary": "chaos",
+  "secondary": "divine",
+  "rates": {
+   "divine": 0.004629
+  },
+  "items": [
+   {
+    "id": "chaos",
+    "name": "Chaos Orb",
+    "image": "/gen/image/x/chaos.png",
+    "category": "Currency",
+    "detailsId": "chaos-orb"
+   },
+   {
+    "id": "divine",
+    "name": "Divine Orb",
+    "image": "/gen/image/x/divine.png",
+    "category": "Currency",
+    "detailsId": "divine-orb"
+   }
+  ]
+ },
+ "items": [
+  {
+   "id": "chaos",
+   "name": "Chaos Orb",
+   "image": "/gen/image/x/chaos.png",
+   "category": "Currency",
+   "detailsId": "chaos-orb"
+  },
+  {
+   "id": "divine",
+   "name": "Divine Orb",
+   "image": "/gen/image/x/divine.png",
+   "category": "Currency",
+   "detailsId": "divine-orb"
+  },
+  {
+   "id": "fusing",
+   "name": "Orb of Fusing",
+   "image": "/gen/image/x/fusing.png",
+   "category": "Currency",
+   "detailsId": "orb-of-fusing"
+  },
+  {
+   "id": "scour",
+   "name": "Orb of Scouring",
+   "image": "/gen/image/x/scour.png",
+   "category": "Currency",
+   "detailsId": "orb-of-scouring"
+  }
+ ],
+ "lines": [
+  {
+   "id": "chaos",
+   "primaryValue": 1,
+   "volumePrimaryValue": 8253328,
+   "maxVolumeCurrency": "divine",
+   "maxVolumeRate": 216,
+   "sparkline": {
+    "totalChange": -70.62,
+    "data": [
+     null,
+     0,
+     -43.06,
+     -56.74,
+     -59.19,
+     -66.85,
+     -70.62
+    ]
+   }
+  },
+  {
+   "id": "divine",
+   "primaryValue": 216,
+   "volumePrimaryValue": 8253328,
+   "maxVolumeCurrency": "chaos",
+   "maxVolumeRate": 0.004629,
+   "sparkline": {
+    "totalChange": 205.1,
+    "data": [
+     null,
+     0,
+     59.21,
+     107.5,
+     120,
+     171.2,
+     205.1
+    ]
+   }
+  },
+  {
+   "id": "fusing",
+   "primaryValue": 0.1501,
+   "volumePrimaryValue": 80481,
+   "maxVolumeCurrency": "chaos",
+   "maxVolumeRate": 6.66,
+   "sparkline": {
+    "totalChange": -3.17,
+    "data": [
+     null,
+     0,
+     54.68,
+     23.07,
+     5.41,
+     -4.81,
+     -3.17
+    ]
+   }
+  },
+  {
+   "id": "scour",
+   "primaryValue": 0.7787,
+   "volumePrimaryValue": 101694,
+   "maxVolumeCurrency": "chaos",
+   "maxVolumeRate": 1.28,
+   "sparkline": {
+    "totalChange": 54.63,
+    "data": [
+     null,
+     0,
+     64.17,
+     41.2,
+     28.54,
+     29.11,
+     54.63
+    ]
+   }
+  }
+ ]
+}

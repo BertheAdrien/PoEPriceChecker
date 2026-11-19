@@ -9,7 +9,9 @@
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "price": "tsx scripts/price.ts",
+    "import:wiki": "tsx scripts/import-wiki.ts"
   },
   "dependencies": {
     "next": "16.4.6",

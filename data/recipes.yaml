@@ -1,5 +1,5 @@
 # Conversions saisies à la main (complète les recettes importées du wiki).
-# kind: vendor_shop | vendor_recipe | exchange | fragment_set | craft
+# kind: vendor_shop | vendor_recipe | div_card | fragment_set | other
 # Noms d'items = noms anglais tels qu'affichés par poe.ninja.
 # vendor_shop : on DONNE `inputs` au PNJ et on REÇOIT `outputs`. Quantité illimitée.
 # verified: date + ligue si vérifié en jeu/wiki ; false sinon.
