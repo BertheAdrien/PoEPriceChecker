@@ -22,16 +22,24 @@ Cocher au fur et à mesure. Une étape = une session courte (`/clear` entre deux
       → résultat : emblèmes Timeless, Simulacrum, Ritual Vessel, Maven's Writ, shards → orbes présents ; breachstones (non fonctionnelles), scarabées (tirage aléatoire), invitations absents/non modélisables (cf. `docs/data-sources.md`)
 
 ## Étape 3 — Moteur
-- [ ] `evaluateRecipe()` : coût, revenu, `marginPct`, `profitChaos`, liquidité
-- [ ] Chaînes PNJ : graphe des échanges, meilleur chemin jusqu'à 4 étapes (ex. Jeweller's → Fusing → Scouring)
-- [ ] **Triangulation** (idée 4) — spike d'abord : poe.ninja ne donne que le prix en chaos + une paire (`maxVolumeRate`).
+- [x] `evaluateRecipe()` : coût, revenu, `marginPct`, `profitChaos`, liquidité
+- [x] Chaînes PNJ : graphe des échanges, meilleur chemin jusqu'à 4 étapes (ex. Jeweller's → Fusing → Scouring)
+- [x] **Triangulation** (idée 4) — spike d'abord : poe.ninja ne donne que le prix en chaos + une paire (`maxVolumeRate`).
       Version 1 : écart chaos ↔ divine par currency. Version complète = API Currency Exchange de GGG (paires réelles), à évaluer.
-- [ ] CLI `npm run opps -- --top 20 [--kind ...] [--id ...]`
+      → résultat : aucun signal (primaryValue = paire la plus échangée), non implémenté ; API GGG = 401 sans OAuth (cf. `docs/data-sources.md`)
+- [x] CLI `npm run opps -- --top 20 [--kind ...] [--id ...]`
 
 ## Étape 4 — UI
 - [ ] Page unique : tableau trié par marge %, colonnes marge %, profit (c), coût, liquidité, tendance 7 j, étapes
-- [ ] Filtres : type d'opportunité, liquidité min, marge min, coût max (budget)
-- [ ] Bandeau : ligue, heure des données, ratio divine/chaos ; lien vers le trade officiel quand dispo (`tradeFilter`)
+- [ ] Filtres : type d'opportunité, liquidité min, marge min
+- [ ] **Mode budget** : champ capital (c ou div) → masque ce qui coûte plus que le budget ; affiche le nombre de
+      runs possibles et le profit total, plafonné par la liquidité (ex. House of Mirrors = plusieurs centaines de div → masqué)
+- [ ] **Liste de courses** (détail d'une opportunité) : quoi acheter, combien, où convertir (PNJ / vendor), à quel prix revendre,
+      et surtout les **prix seuils** : prix d'achat max de chaque entrée et prix de vente min de la sortie au-delà desquels
+      la marge devient nulle (les autres prix étant fixés)
+- [ ] **Liens trade** uniquement pour les items du trade classique (uniques, etc. via `tradeFilter` de poe.ninja) ;
+      pas de lien pour la currency (elle se trade chez Faustus, le Currency Exchange en jeu)
+- [ ] Bandeau : ligue, heure des données, ratio divine/chaos
 
 ## Étape 5 — Déploiement
 - [ ] Dockerfile (`output: "standalone"`), docker compose, reverse proxy (Caddy/nginx) sur le VPS
@@ -39,3 +47,7 @@ Cocher au fur et à mesure. Une étape = une session courte (`/clear` entre deux
 
 ## Étape 6 — Alertes (fin de V1)
 - [ ] Webhook Discord (URL en variable d'environnement) quand une opportunité dépasse X % avec liquidité ≥ Y, sans doublons
+
+## Plus tard (hors V1, décidé le 2026-11-19)
+- Suivi des gains réels (prévu vs réalisé)
+- Profit/heure, anomalies de prix, gemmes, achat en gros vs à l'unité, trading sur le Currency Exchange

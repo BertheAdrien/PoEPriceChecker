@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "price": "tsx scripts/price.ts",
+    "opps": "tsx scripts/opps.ts",
     "import:wiki": "tsx scripts/import-wiki.ts"
   },
   "dependencies": {

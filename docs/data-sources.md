@@ -58,5 +58,11 @@ Doc : https://www.pathofexile.com/developer/docs
 - **Currency Exchange API** (scope `service:cxapi`, accès public mentionné) : historique horaire des ratios et volumes. Phase 2.
 - **Trade API** : rate limits stricts, pour vérification ponctuelle seulement.
 
+### Spike triangulation (2026-11-19, Covens)
+- Exchange overview, types Currency/Fragment/DivinationCard/Scarab/Essence : 648 lignes, `maxVolumeCurrency` = `chaos` (601) ou `divine` (47).
+- Pour les 47 lignes en `divine`, prix implicite `divineChaos / maxVolumeRate` = `primaryValue` (écart < 0,5 % pour toutes) ; idem `1 / maxVolumeRate` pour les lignes en chaos.
+  → `primaryValue` est dérivé de cette paire : **aucun signal d'arbitrage**, triangulation non implémentée.
+- API Currency Exchange GGG (`GET https://api.pathofexile.com/currency-exchange`) : **401 Unauthorized sans OAuth** (`{"error":{"code":8,"message":"Unauthorized"}}`) ; il faut un token (scope `service:cxapi`). Non utilisable sans compte/app enregistrée.
+
 ## 4. RePoE
 https://github.com/lvlvllvlvllvlvl/RePoE — JSON extraits du jeu (bases, mods, gemmes). Référentiel d'items si besoin.
