@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { parse as parseYaml } from "yaml";
+import { z } from "zod";
 import { recipeListSchema } from "./schema";
 import type { Recipe } from "./types";
 
@@ -43,6 +44,38 @@ export function mergeRecipes(yaml: Recipe[], wiki: Recipe[]): Recipe[] {
   return [...byId.values()];
 }
 
-export function loadRecipes(opts: { yamlFile?: string; wikiFile?: string } = {}): Recipe[] {
-  return mergeRecipes(loadYamlRecipes(opts.yamlFile), loadWikiRecipes(opts.wikiFile));
+const DEFAULT_OVERRIDES = path.join(process.cwd(), "data", "recipe-overrides.yaml");
+
+const overrideSchema = z.array(
+  z.object({
+    id: z.string(),
+    corruptedInputs: z.enum(["allowed", "forbidden"]).optional(),
+    source: z.string(),
+    verified: z.union([z.string(), z.literal(false)]),
+  }),
+);
+export type RecipeOverride = z.infer<typeof overrideSchema>[number];
+
+export function parseOverridesYaml(text: string): RecipeOverride[] {
+  return overrideSchema.parse(parseYaml(text) ?? []);
+}
+
+/** Applique les corrections par id ; un id inconnu lève une erreur (faute de frappe, recette disparue). */
+export function applyOverrides(recipes: Recipe[], overrides: RecipeOverride[]): Recipe[] {
+  const byId = new Map(recipes.map((r) => [r.id, r]));
+  for (const o of overrides) {
+    const r = byId.get(o.id);
+    if (!r) throw new Error(`recipe-overrides.yaml : recette inconnue « ${o.id} »`);
+    if (o.corruptedInputs) byId.set(o.id, { ...r, corruptedInputs: o.corruptedInputs });
+  }
+  return [...byId.values()];
+}
+
+export function loadRecipes(
+  opts: { yamlFile?: string; wikiFile?: string; overridesFile?: string } = {},
+): Recipe[] {
+  const merged = mergeRecipes(loadYamlRecipes(opts.yamlFile), loadWikiRecipes(opts.wikiFile));
+  const file = opts.overridesFile ?? DEFAULT_OVERRIDES;
+  if (!fs.existsSync(file)) return merged;
+  return applyOverrides(merged, parseOverridesYaml(fs.readFileSync(file, "utf8")));
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { loadYamlRecipes, mergeRecipes, parseRecipesYaml } from "./load";
+import { applyOverrides, loadRecipes, loadYamlRecipes, mergeRecipes, parseRecipesYaml } from "./load";
 import type { Recipe } from "./types";
 
 describe("data/recipes.yaml", () => {
@@ -55,5 +55,19 @@ describe("mergeRecipes", () => {
   it("écarte une recette wiki identique (entrées/sorties) à une recette YAML", () => {
     const merged = mergeRecipes([mk("y", "yaml")], [mk("w", "wiki")]);
     expect(merged.map((r) => r.id)).toEqual(["y"]);
+  });
+});
+
+describe("recipe overrides", () => {
+  const base = { id: "a", kind: "other" as const, inputs: [{ item: "X", qty: 1 }], outputs: [{ item: "Y", qty: 1 }], source: "s", verified: false as const };
+  it("applique corruptedInputs par id", () => {
+    const [r] = applyOverrides([base], [{ id: "a", corruptedInputs: "allowed", source: "w", verified: "d" }]);
+    expect(r.corruptedInputs).toBe("allowed");
+  });
+  it("refuse un id inconnu", () => {
+    expect(() => applyOverrides([base], [{ id: "zz", source: "w", verified: false }])).toThrow(/inconnue/);
+  });
+  it("le vrai fichier d'overrides est valide et ses ids existent", () => {
+    expect(() => loadRecipes()).not.toThrow();
   });
 });

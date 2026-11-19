@@ -1,0 +1,8 @@
+# Corrections ponctuelles appliquées aux recettes (YAML ou importées du wiki), par id.
+# Champs surchargeables : corruptedInputs (allowed | forbidden). Toujours citer la source.
+# Par défaut, toutes les recettes exigent des entrées NON corrompues (cf. src/lib/recipes/policy.ts).
+
+- id: the-taming-1
+  corruptedInputs: allowed
+  source: "https://www.poewiki.net/wiki/Vendor_recipe_system (Berek's : corrompus ou Foulborn acceptés)"
+  verified: "2026-11-19 (wiki)"
