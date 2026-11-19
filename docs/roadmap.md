@@ -3,9 +3,9 @@
 Cocher au fur et à mesure. Une étape = une session courte (`/clear` entre deux étapes).
 
 ## Étape 0 — Socle
-- [ ] `create-next-app` (TS, Tailwind, App Router, `src/`), Vitest, zod, `yaml`, `tsx` pour les scripts
+- [x] `create-next-app` (TS, Tailwind, App Router, `src/`), Vitest, zod, `yaml`, `tsx` pour les scripts
 - [ ] Scripts npm : `dev, build, test, lint, typecheck, opps, price, import:wiki`
-- [ ] `git init`, `.gitignore`, premier commit, repo GitHub public
+- [x] `git init`, `.gitignore`, premier commit, repo GitHub public
 
 ## Étape 1 — Prix (poe.ninja)
 - [ ] `src/lib/ninja/` : `getLeague()`, `getExchangeOverview(type)`, `getItemOverview(type)` + schémas zod
