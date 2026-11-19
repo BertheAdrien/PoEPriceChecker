@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)", "Bash(npm test*)", "Bash(npx vitest *)", "Bash(npx tsc *)",
+      "Bash(git status*)", "Bash(git diff*)", "Bash(git log*)",
+      "WebFetch(domain:poe.ninja)", "WebFetch(domain:www.poewiki.net)",
+      "WebFetch(domain:poedb.tw)", "WebFetch(domain:www.pathofexile.com)"
+    ],
+    "deny": [
+      "Read(./data/generated/**)", "Read(./node_modules/**)",
+      "Read(./.next/**)", "Read(./package-lock.json)"
+    ]
+  }
+}

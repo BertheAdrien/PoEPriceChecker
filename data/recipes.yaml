@@ -1,0 +1,119 @@
+# Conversions saisies à la main (complète les recettes importées du wiki).
+# kind: vendor_shop | vendor_recipe | exchange | fragment_set | craft
+# Noms d'items = noms anglais tels qu'affichés par poe.ninja.
+# vendor_shop : on DONNE `inputs` au PNJ et on REÇOIT `outputs`. Quantité illimitée.
+# verified: date + ligue si vérifié en jeu/wiki ; false sinon.
+
+# --- Boutique PNJ : progression principale (source : tableau "Vendor prices chart" du wiki, fourni par l'utilisateur) ---
+- id: vendor-alchemy
+  kind: vendor_shop
+  inputs: [{ item: "Orb of Regret", qty: 1 }]
+  outputs: [{ item: "Orb of Alchemy", qty: 1 }]
+  vendor: "Act 3 — Clarissa"
+  source: "wiki — Vendor prices chart"
+  verified: "2026-11-19 (wiki)"
+
+- id: vendor-regret
+  kind: vendor_shop
+  inputs: [{ item: "Orb of Scouring", qty: 2 }]
+  outputs: [{ item: "Orb of Regret", qty: 1 }]
+  vendor: "Act 2 — Yeena"
+  source: "wiki — Vendor prices chart"
+  verified: "2026-11-19 (wiki)"
+
+- id: vendor-scouring
+  kind: vendor_shop
+  inputs: [{ item: "Orb of Fusing", qty: 4 }]
+  outputs: [{ item: "Orb of Scouring", qty: 1 }]
+  vendor: "Act 2 — Yeena"
+  source: "wiki — Vendor prices chart + observé en jeu par l'utilisateur"
+  verified: "2026-11-19 (wiki + jeu)"
+
+- id: vendor-fusing
+  kind: vendor_shop
+  inputs: [{ item: "Jeweller's Orb", qty: 4 }]
+  outputs: [{ item: "Orb of Fusing", qty: 1 }]
+  vendor: "Act 2 — Yeena"
+  source: "wiki — Vendor prices chart"
+  verified: "2026-11-19 (wiki)"
+
+- id: vendor-jeweller
+  kind: vendor_shop
+  inputs: [{ item: "Orb of Alteration", qty: 2 }]
+  outputs: [{ item: "Jeweller's Orb", qty: 1 }]
+  vendor: "Act 2 — Yeena"
+  source: "wiki — Vendor prices chart"
+  verified: "2026-11-19 (wiki)"
+
+- id: vendor-alteration
+  kind: vendor_shop
+  inputs: [{ item: "Orb of Augmentation", qty: 4 }]
+  outputs: [{ item: "Orb of Alteration", qty: 1 }]
+  vendor: "Act 1 — Nessa"
+  source: "wiki — Vendor prices chart"
+  verified: "2026-11-19 (wiki)"
+
+- id: vendor-augmentation
+  kind: vendor_shop
+  inputs: [{ item: "Orb of Transmutation", qty: 4 }]
+  outputs: [{ item: "Orb of Augmentation", qty: 1 }]
+  vendor: "Act 1 — Nessa"
+  source: "wiki — Vendor prices chart"
+  verified: "2026-11-19 (wiki)"
+
+# Le tableau indique "Transmutation = 1× Augmentation" mais une valeur de 1/16 alt,
+# ce qui est incohérent (1 aug = 1/4 alt). Prix réel à vérifier en jeu chez Nessa.
+- id: vendor-transmutation
+  kind: vendor_shop
+  inputs: [{ item: "Orb of Augmentation", qty: 1 }]
+  outputs: [{ item: "Orb of Transmutation", qty: 1 }]
+  vendor: "Act 1 — Nessa"
+  source: "wiki — Vendor prices chart (ligne incohérente)"
+  verified: false
+
+- id: vendor-portal
+  kind: vendor_shop
+  inputs: [{ item: "Scroll of Wisdom", qty: 3 }]
+  outputs: [{ item: "Portal Scroll", qty: 1 }]
+  vendor: "Act 1 — Nessa"
+  source: "wiki — Vendor prices chart"
+  verified: "2026-11-19 (wiki)"
+
+# --- Scraps ---
+- id: vendor-whetstone
+  kind: vendor_shop
+  inputs: [{ item: "Armourer's Scrap", qty: 3 }]
+  outputs: [{ item: "Blacksmith's Whetstone", qty: 1 }]
+  vendor: "Act 2 — Greust"
+  source: "wiki — Vendor prices chart"
+  verified: "2026-11-19 (wiki)"
+
+- id: vendor-armourer
+  kind: vendor_shop
+  inputs: [{ item: "Blacksmith's Whetstone", qty: 1 }]
+  outputs: [{ item: "Armourer's Scrap", qty: 1 }]
+  vendor: "Act 1 — Tarkleigh"
+  source: "wiki — Vendor prices chart"
+  verified: "2026-11-19 (wiki)"
+
+# --- Endgame ---
+- id: vendor-unmaking
+  kind: vendor_shop
+  inputs: [{ item: "Orb of Regret", qty: 2 }]
+  outputs: [{ item: "Orb of Unmaking", qty: 1 }]
+  vendor: "Epilogue — Commander Kirac"
+  source: "wiki — Vendor prices chart"
+  verified: "2026-11-19 (wiki)"
+
+# --- Recettes vendeur d'uniques (exemple ; à terme importées du wiki) ---
+- id: lost-unity-vendor-recipe
+  kind: vendor_recipe
+  inputs:
+    - { item: "The Will of Xoph", qty: 1 }
+    - { item: "The Will of Tul", qty: 1 }
+    - { item: "The Will of Esh", qty: 1 }
+    - { item: "The Will of Uul-Netol", qty: 1 }
+    - { item: "The Sundered Will", qty: 1 }
+  outputs: [{ item: "Lost Unity", qty: 1 }]
+  source: "https://www.poewiki.net/wiki/Lost_Unity (acquisition_recipe_parts)"
+  verified: "2026-11-19 Covens (wiki)"
