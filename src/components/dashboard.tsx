@@ -9,7 +9,7 @@ import { readSession, writeSession } from "./session";
 import { TradeLinksModal } from "./trade-links-modal";
 import { AUTO_VERIFY_COUNT, isVerifiable, tradeStatus, useTradeVerification, type TradeStatus } from "./verify";
 import { TradeBadge } from "./trade-badge";
-import { fmt, fmtSigned } from "./format";
+import { fmt, fmtAmount, fmtSigned } from "./format";
 import { filterKind, num, passesPrice, passesStatic, planFor, type Filters } from "./filters";
 import { compareRows, nextSort, SORT_KEYS, type SortDir, type SortKey } from "./sort";
 import { isOverestimated } from "@/lib/trade/effective";
@@ -31,9 +31,11 @@ interface UiState {
   unit: "c" | "div";
   sort: { key: SortKey; dir: SortDir };
   scrollY: number;
+  /** Absent dans un état mémorisé avant l'ajout de la recherche. */
+  search?: string;
 }
 
-const DEFAULTS = { kind: "all", minMargin: "0", minProfit: "0", showConditional: false, budget: "" };
+const DEFAULTS = { kind: "all", minMargin: "0", minProfit: "0", showConditional: false, budget: "", search: "" };
 
 const COLS = "grid-cols-[44px_170px_minmax(0,1fr)_120px_90px_104px_210px]";
 
@@ -131,7 +133,22 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
   const [budget, setBudget] = useState(DEFAULTS.budget);
   const [unit, setUnit] = useState<"c" | "div">("c");
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: "margin", dir: "desc" });
+  const [search, setSearch] = useState(DEFAULTS.search);
+  const searchRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+
+  // « / » place le curseur dans la recherche (sauf pendant une saisie ailleurs).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
+      e.preventDefault();
+      searchRef.current?.focus();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // Filtres, tri et défilement retrouvés au retour d'une page d'opportunité (même onglet).
   const restored = useRef(false);
@@ -147,16 +164,17 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
     setBudget(ui.budget);
     setUnit(ui.unit);
     if (ui.sort && SORT_KEYS.includes(ui.sort.key)) setSort(ui.sort);
+    setSearch(ui.search ?? "");
     /* eslint-enable react-hooks/set-state-in-effect */
     requestAnimationFrame(() => window.scrollTo(0, ui.scrollY));
   }, []);
   useEffect(() => {
     if (!restored.current) return;
     const ui: Omit<UiState, "scrollY"> = {
-      version: UI_VERSION, kind, minMargin, minProfit, showConditional, budget, unit, sort,
+      version: UI_VERSION, kind, minMargin, minProfit, showConditional, budget, unit, sort, search,
     };
     writeSession("dashboard", { ...ui, scrollY: readSession<UiState>("dashboard")?.scrollY ?? 0 });
-  }, [kind, minMargin, minProfit, showConditional, budget, unit, sort]);
+  }, [kind, minMargin, minProfit, showConditional, budget, unit, sort, search]);
 
   const resetFilters = () => {
     setKind(DEFAULTS.kind);
@@ -164,6 +182,7 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
     setMinProfit(DEFAULTS.minProfit);
     setShowConditional(DEFAULTS.showConditional);
     setBudget(DEFAULTS.budget);
+    setSearch(DEFAULTS.search);
   };
 
   /** Clic simple : navigation dans l'onglet (défilement mémorisé) ; Ctrl/Cmd/Maj/molette : comportement natif. */
@@ -188,8 +207,9 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
       minMarginPct: num(minMargin),
       minProfit: num(minProfit),
       budgetChaos,
+      search,
     }),
-    [kind, showConditional, minMargin, minProfit, budgetChaos],
+    [kind, showConditional, minMargin, minProfit, budgetChaos, search],
   );
 
   // Candidats filtrés sur les prix poe.ninja, triés par marge ninja : stable pendant les vérifications
@@ -233,7 +253,7 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
   const kindCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const o of payload.opportunities) {
-      if (!passesStatic(o, { ...filters, kind: "all" })) continue;
+      if (!passesStatic(o, { ...filters, kind: "all" }, payload.categories)) continue;
       const k = filterKind(o, payload.categories);
       counts.set(k, (counts.get(k) ?? 0) + 1);
     }
@@ -353,6 +373,35 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
       </section>
 
       <Panel className="flex flex-wrap items-end gap-4 bg-[#120c08]/90 px-5 py-4">
+        <label className="flex basis-full items-center gap-3 border-b border-[#8a5a2a] pb-2 focus-within:border-flame">
+          <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden className="shrink-0">
+            <circle cx="7.5" cy="7.5" r="5.5" fill="none" stroke="#c8a98a" strokeWidth="1.5" />
+            <path d="m12 12 4.5 4.5" stroke="#c8a98a" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+          <span className="sr-only">Rechercher</span>
+          <input
+            ref={searchRef}
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => e.key === "Escape" && setSearch("")}
+            placeholder="Rechercher : red dream, essence, xesht, vendor recipe…"
+            className="flavour min-w-0 flex-1 bg-transparent py-1 text-lg text-cream placeholder:text-faint focus:outline-none [&::-webkit-search-cancel-button]:hidden"
+          />
+          {search ? (
+            <button
+              onClick={() => setSearch("")}
+              aria-label="Effacer la recherche"
+              className="size-8 shrink-0 text-muted hover:text-cream"
+            >
+              ✕
+            </button>
+          ) : (
+            <kbd className="num shrink-0 border border-edge border-b-2 px-1.5 text-[11px] text-dim" title="Raccourci clavier">
+              /
+            </kbd>
+          )}
+        </label>
         <div className="flex basis-full flex-wrap gap-2">
           {[["all", total] as const, ...[...kindCounts.entries()]].map(([k, n]) => {
             const on = kind === k;
@@ -513,7 +562,12 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
                     {vr && <div className="num text-[11px] text-faint">ninja {fmtSigned(o.profitChaos, divineChaos).main}</div>}
                   </div>
 
-                  <div className="num text-right text-[#d8c6ae]">{fmt(o.costChaos)}c</div>
+                  <div className="text-right">
+                    <div className="num text-[#d8c6ae]">{fmtAmount(o.costChaos, divineChaos).main}</div>
+                    {o.costChaos >= divineChaos && (
+                      <div className="num text-[11px] text-faint">{fmtAmount(o.costChaos, divineChaos).sub}</div>
+                    )}
+                  </div>
 
                   <div className="flex flex-col items-end gap-0.5" title="Prix du premier item vendu sur 7 jours (poe.ninja)">
                     {o.trendSeries && <Sparkline series={o.trendSeries} />}

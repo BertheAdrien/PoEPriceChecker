@@ -45,6 +45,15 @@ export function OpportunityPage({
             <Frame />← Retour au tableau
           </Link>
           <TradeBadge status={status} />
+          {verifiable && status !== "checking" && (
+            <button
+              onClick={() => verify(o.id)}
+              title="Relance la recherche sur le trade officiel (ignore le cache de 15 min)"
+              className="btn-ghost px-3 py-1.5 font-display text-[11px] tracking-wide"
+            >
+              ↻ Mettre à jour les prix trade
+            </button>
+          )}
         </span>
         <span className="text-dim">
           Ligue <b className="text-cream">{payload.league}</b> · données{" "}

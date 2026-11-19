@@ -73,6 +73,7 @@ export function clearTradeCache(): void {
 /**
  * Prix trade d'un item du stash (annonces securable, non corrompues, non mutées), cache 15 min par requête.
  * undefined si l'item n'est pas vérifiable (exchange, Foulborn). 1 recherche + 1 fetch au plus.
+ * `fresh` : ignore le cache (revérification demandée à la main) ; le nouveau résultat remplace l'ancien.
  */
 export function searchPrice(
   entry: PriceEntry,
@@ -80,13 +81,14 @@ export function searchPrice(
   league: string = index.league,
   deps: Partial<TradeDeps> = {},
   corrupted: CorruptedFilter = "false",
+  fresh = false,
 ): Promise<TradePrice> | undefined {
   const query = buildTradeQuery(entry, corrupted);
   if (!query) return undefined;
   const d = { ...defaultDeps, ...deps };
   const key = `${league}|${JSON.stringify(query)}`;
   const hit = cache.get(key);
-  if (hit && d.now() - hit.at < TTL_MS) return hit.value;
+  if (!fresh && hit && d.now() - hit.at < TTL_MS) return hit.value;
 
   const value = (async (): Promise<TradePrice> => {
     const tradeUrl = buildSearchUrl(league, query);

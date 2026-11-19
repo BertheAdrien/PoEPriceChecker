@@ -41,7 +41,10 @@ export function useTradeVerification(autoIds: string[], fetchedAt: string) {
   const [states, setStates] = useState<Record<string, VerifyState>>({});
   const chain = useRef<Promise<void>>(Promise.resolve());
   const wanted = useRef<Set<string>>(new Set());
+  /** Ids déjà mis en file ou vérifiés : pas de nouvelle vérification automatique. */
   const queued = useRef<Set<string>>(new Set());
+  /** Ids en file ou en cours : pas de doublon, même manuel. */
+  const inflight = useRef<Set<string>>(new Set());
   const fetchedAtRef = useRef(fetchedAt);
   useEffect(() => {
     fetchedAtRef.current = fetchedAt;
@@ -55,17 +58,20 @@ export function useTradeVerification(autoIds: string[], fetchedAt: string) {
         else delete next[id];
         return next;
       });
-    if (queued.current.has(id)) return;
+    // Manuel (bouton) : revérifie même un item déjà vérifié (prix trade rafraîchi), sauf s'il est déjà en file.
+    if (inflight.current.has(id) || (!manual && queued.current.has(id))) return;
     queued.current.add(id);
+    inflight.current.add(id);
     setState({ status: "loading" });
     chain.current = chain.current.then(async () => {
       if (!manual && !wanted.current.has(id)) {
         queued.current.delete(id);
+        inflight.current.delete(id);
         setState(undefined);
         return;
       }
       try {
-        const res = await fetch(`/api/verify?id=${encodeURIComponent(id)}`);
+        const res = await fetch(`/api/verify?id=${encodeURIComponent(id)}${manual ? "&fresh=1" : ""}`);
         if (res.status === 429) {
           const body = (await res.json().catch(() => ({}))) as { retryAfterSec?: number; error?: string };
           queued.current.delete(id);
@@ -82,6 +88,8 @@ export function useTradeVerification(autoIds: string[], fetchedAt: string) {
       } catch (e) {
         queued.current.delete(id);
         setState({ status: "error", message: e instanceof Error ? e.message : String(e) });
+      } finally {
+        inflight.current.delete(id);
       }
     });
   }, []);

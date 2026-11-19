@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Opportunity } from "@/lib/engine/types";
-import { ESSENCE_OIL, filterKind, num, passesPrice, passesStatic, planFor, type Filters } from "./filters";
+import { ESSENCE_OIL, filterKind, matchesSearch, num, passesPrice, passesStatic, planFor, type Filters } from "./filters";
 
 const base: Filters = { kind: "all", showConditional: false, minMarginPct: 0, minProfit: 0 };
 
@@ -100,6 +100,35 @@ describe("essences et huiles (groupe dédié)", () => {
   });
   it("catégories inconnues → type d'origine", () => {
     expect(filterKind(essence)).toBe("vendor_recipe");
+  });
+});
+
+describe("recherche par mots-clés", () => {
+  const dream = {
+    ...stash,
+    id: "red",
+    kind: "other",
+    label: "1× The Red Dream + 1× Flesh of Xesht → 1× The Red Nightmare",
+    inputs: [{ item: "The Red Dream", qty: 1 }, { item: "Flesh of Xesht", qty: 1 }],
+    outputs: [{ item: "The Red Nightmare", qty: 1 }],
+  } as unknown as Opportunity;
+  const s = (search: string) => passesStatic(dream, { ...base, search });
+
+  it("vide → tout passe", () => {
+    expect(s("")).toBe(true);
+    expect(s("   ")).toBe(true);
+  });
+  it("tous les mots requis, casse ignorée, ordre libre", () => {
+    expect(s("red dream")).toBe(true);
+    expect(s("NIGHTMARE xesht")).toBe(true);
+    expect(s("red essence")).toBe(false);
+  });
+  it("cherche aussi dans le type affiché", () => {
+    expect(s("other")).toBe(true);
+    expect(s("vendor")).toBe(false);
+  });
+  it("accents ignorés", () => {
+    expect(matchesSearch({ ...dream, outputs: [{ item: "Mjölner", qty: 1 }] } as unknown as Opportunity, "mjolner")).toBe(true);
   });
 });
 

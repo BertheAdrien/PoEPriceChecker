@@ -128,6 +128,15 @@ describe("searchPrice / verifyOpportunity (sans réseau)", () => {
     expect(deps.search).toHaveBeenCalledTimes(2);
   });
 
+  it("fresh : ignore le cache et le remplace", async () => {
+    const deps = makeDeps();
+    await searchPrice(dream, index, "Covens", deps);
+    await searchPrice(dream, index, "Covens", deps, "false", true);
+    expect(deps.search).toHaveBeenCalledTimes(2);
+    await searchPrice(dream, index, "Covens", deps);
+    expect(deps.search).toHaveBeenCalledTimes(2);
+  });
+
   it("recherche en échec : l'erreur n'est pas mise en cache", async () => {
     const deps = makeDeps();
     deps.search.mockRejectedValueOnce(new Error("boom"));

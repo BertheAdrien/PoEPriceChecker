@@ -10,12 +10,14 @@ import type { VerifiedItem, VerifyResult } from "./types";
  * sérialise de toute façon). Les items de l'exchange gardent le prix poe.ninja.
  * Corruption : les sorties sont toujours non corrompues ; les entrées le sont aussi, sauf si la
  * recette accepte les copies corrompues (`corruptedInputs: "allowed"` -> pas de filtre).
+ * `fresh` : ignore le cache trade de 15 min (revérification manuelle).
  */
 export async function verifyOpportunity(
   o: Opportunity,
   index: PriceIndex,
   config: EngineConfig = DEFAULT_ENGINE_CONFIG,
   deps: Partial<TradeDeps> = {},
+  fresh = false,
 ): Promise<VerifyResult> {
   const overrides = new Map<string, number>();
   const items: VerifiedItem[] = [];
@@ -28,7 +30,7 @@ export async function verifyOpportunity(
       seen.add(i.item);
       const base = { item: i.item, role, corrupted, ninjaChaos: i.unitChaos };
       const entry = index.get(i.item);
-      const pending = entry && searchPrice(entry, index, index.league, deps, corrupted);
+      const pending = entry && searchPrice(entry, index, index.league, deps, corrupted, fresh);
       if (!pending) {
         items.push({ ...base, status: "unverifiable" });
         continue;

@@ -17,15 +17,19 @@ function opportunities(index: PriceIndex): Map<string, Opportunity> {
   return m;
 }
 
-/** GET /api/verify?id=<id d'opportunité> : vérifie une opportunité sur le trade officiel. */
+/**
+ * GET /api/verify?id=<id d'opportunité>[&fresh=1] : vérifie une opportunité sur le trade officiel.
+ * `fresh=1` (bouton « Vérifier ») ignore le cache trade de 15 min ; toujours via le limiteur.
+ */
 export async function GET(request: NextRequest) {
   const id = request.nextUrl.searchParams.get("id");
+  const fresh = request.nextUrl.searchParams.get("fresh") === "1";
   if (!id) return NextResponse.json({ error: "paramètre id manquant" }, { status: 400 });
   try {
     const index = await buildPriceIndex();
     const o = opportunities(index).get(id);
     if (!o) return NextResponse.json({ error: `opportunité inconnue : ${id}` }, { status: 404 });
-    return NextResponse.json(await verifyOpportunity(o, index, DEFAULT_ENGINE_CONFIG));
+    return NextResponse.json(await verifyOpportunity(o, index, DEFAULT_ENGINE_CONFIG, {}, fresh));
   } catch (e) {
     if (e instanceof TradeRateLimitedError || e instanceof RateLimitWaitError) {
       return NextResponse.json(

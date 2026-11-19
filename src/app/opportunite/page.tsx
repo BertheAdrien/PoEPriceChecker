@@ -39,7 +39,17 @@ async function Data({ searchParams }: { searchParams: PageProps<"/opportunite">[
     trade: pick(payload.trade),
     categories: pick(payload.categories),
   };
-  return <OpportunityPage o={o} runs={runs} links={payload.tradeLinks[o.id] ?? []} payload={detail} />;
+  // Clé par item (et quantité du mode budget) : un autre item repart d'un état neuf (runs, fenêtre de
+  // liens) au lieu de réutiliser celui de la page précédente.
+  return (
+    <OpportunityPage
+      key={`${o.id}:${runs ?? ""}`}
+      o={o}
+      runs={runs}
+      links={payload.tradeLinks[o.id] ?? []}
+      payload={detail}
+    />
+  );
 }
 
 export default function Page({ searchParams }: PageProps<"/opportunite">) {

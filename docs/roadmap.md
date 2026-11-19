@@ -76,3 +76,10 @@ Cocher au fur et à mesure. Une étape = une session courte (`/clear` entre deux
 ## Plus tard (hors V1, décidé le 2026-11-19)
 - Suivi des gains réels (prévu vs réalisé)
 - Profit/heure, anomalies de prix, gemmes, achat en gros vs à l'unité, trading sur le Currency Exchange
+- **Bases influencées** (mis de côté le 2026-11-19) : base sans influence + exalt de conquérant (Crusader/Redeemer/Hunter/
+  Warlord) → même base influencée, même ilvl. Données dispo : poe.ninja `stash … type=BaseType` (~16 500 lignes, 1 requête
+  / 15 min) avec `levelRequired` = tranche d'ilvl (82–86) et `variant` = influence ; exalts dans l'exchange Currency.
+  À faire : index des bases par nom+ilvl+influence (l'index actuel est par nom), génération automatique des opportunités,
+  vérification/liens trade filtrés par ilvl, influence et rareté (prix ninja peu fiables : souvent < 5 annonces).
+  **À vérifier avant de coder** (poe-researcher) : l'exalt exige-t-il un item rare (alch en plus) et le prix ninja d'une
+  base influencée correspond-il à un rare avec un mod aléatoire ? la tranche 86 = « 86 et plus » ?

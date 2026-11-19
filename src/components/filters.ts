@@ -1,5 +1,6 @@
 import { planBudget, type BudgetPlan } from "@/lib/engine/budget";
 import type { Opportunity } from "@/lib/engine/types";
+import { FILTER_KIND_LABELS } from "./labels";
 
 export interface Filters {
   kind: string;
@@ -9,6 +10,30 @@ export interface Filters {
   minProfit: number;
   /** undefined = pas de budget. */
   budgetChaos?: number;
+  /** Mots-clés (tous requis), cherchés dans les noms d'items et le type ; vide = pas de filtre. */
+  search?: string;
+}
+
+const normalize = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+
+/**
+ * Recherche par mots-clés : chaque mot (insensible à la casse et aux accents) doit apparaître dans
+ * le libellé, un nom d'item (entrées, étapes, sorties) ou le type affiché de l'opportunité.
+ */
+export function matchesSearch(o: Opportunity, search: string | undefined, categories?: Record<string, string>): boolean {
+  const words = normalize(search ?? "").split(/\s+/).filter(Boolean);
+  if (words.length === 0) return true;
+  const haystack = normalize(
+    [
+      o.label,
+      ...(o.inputs ?? []).map((i) => i.item),
+      ...(o.outputs ?? []).map((i) => i.item),
+      ...(o.steps ?? []).map((s) => s.to),
+      FILTER_KIND_LABELS[filterKind(o, categories)] ?? "",
+      FILTER_KIND_LABELS[o.kind] ?? "",
+    ].join(" "),
+  );
+  return words.every((w) => haystack.includes(w));
 }
 
 /** Parse un champ numérique saisi (virgule acceptée) ; vide ou invalide → 0. */
@@ -43,7 +68,7 @@ export function filterKind(o: Opportunity, categories: Record<string, string> = 
 export function passesStatic(o: Opportunity, f: Filters, categories?: Record<string, string>): boolean {
   if (!f.showConditional && o.conditional) return false;
   if (f.kind !== "all" && filterKind(o, categories) !== f.kind) return false;
-  return true;
+  return matchesSearch(o, f.search, categories);
 }
 
 /** Filtres de prix, appliqués à l'opportunité effective (prix trade vérifiés si disponibles). */
