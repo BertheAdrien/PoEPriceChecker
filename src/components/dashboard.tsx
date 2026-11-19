@@ -1,24 +1,32 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import type { Opportunity, OpportunityKind } from "@/lib/engine/types";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { DashboardPayload } from "@/lib/payload";
-import { OpportunityDetail } from "./opportunity-detail";
+import { KIND_LABELS, opportunityHref } from "./labels";
+import { readSession, writeSession } from "./session";
 import { TradeLinksModal } from "./trade-links-modal";
-import { AUTO_VERIFY_COUNT, isVerifiable, useTradeVerification } from "./verify";
+import { AUTO_VERIFY_COUNT, isVerifiable, tradeStatus, useTradeVerification } from "./verify";
+import { TradeBadge } from "./trade-badge";
 import { fmt, fmtProfit } from "./format";
 import { num, passesPrice, passesStatic, planFor, type Filters } from "./filters";
-import { compareRows, nextSort, type SortDir, type SortKey } from "./sort";
+import { compareRows, nextSort, SORT_KEYS, type SortDir, type SortKey } from "./sort";
 import { isOverestimated } from "@/lib/trade/effective";
 
-const KIND_LABELS: Record<OpportunityKind, string> = {
-  vendor_shop: "Boutique PNJ",
-  vendor_recipe: "Recette vendeur",
-  div_card: "Carte de divination",
-  fragment_set: "Fragments",
-  vendor_chain: "Chaîne PNJ",
-  other: "Autre",
-};
+/** Incrémenter quand les champs changent : un état mémorisé d'une ancienne version est ignoré. */
+const UI_VERSION = 2;
+
+interface UiState {
+  version: number;
+  kind: string;
+  minMargin: string;
+  minProfit: string;
+  showConditional: boolean;
+  budget: string;
+  unit: "c" | "div";
+  sort: { key: SortKey; dir: SortDir };
+  scrollY: number;
+}
 
 const inputCls =
   "w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-sm text-zinc-100 focus:border-amber-500 focus:outline-none";
@@ -73,30 +81,52 @@ function Loading() {
   );
 }
 
-function liqText(o: Opportunity): string {
-  const l = o.liquidity;
-  return (
-    [
-      l.minVolumeChaos !== undefined ? `vol ${fmt(l.minVolumeChaos)}c` : "",
-      l.minListings !== undefined ? `${l.minListings} ann.` : "",
-    ]
-      .filter(Boolean)
-      .join(" / ") || "–"
-  );
-}
-
 export function Dashboard({ payload }: { payload: DashboardPayload }) {
   const { divineChaos } = payload;
   const [kind, setKind] = useState<string>("all");
   const [minMargin, setMinMargin] = useState("0");
-  const [minVolume, setMinVolume] = useState("0");
-  const [minListings, setMinListings] = useState("0");
-  const [minProfit, setMinProfit] = useState("5");
+  const [minProfit, setMinProfit] = useState("0");
   const [showConditional, setShowConditional] = useState(false);
   const [budget, setBudget] = useState("");
   const [unit, setUnit] = useState<"c" | "div">("c");
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: "margin", dir: "desc" });
-  const [selected, setSelected] = useState<string | null>(null);
+  const router = useRouter();
+
+  // Filtres, tri et défilement retrouvés au retour d'une page d'opportunité (même onglet).
+  const restored = useRef(false);
+  useEffect(() => {
+    const ui = readSession<UiState>("dashboard");
+    restored.current = true;
+    if (!ui || ui.version !== UI_VERSION) return;
+    /* eslint-disable react-hooks/set-state-in-effect -- sessionStorage n'existe qu'après l'hydratation */
+    setKind(ui.kind);
+    setMinMargin(ui.minMargin);
+    setMinProfit(ui.minProfit);
+    setShowConditional(ui.showConditional);
+    setBudget(ui.budget);
+    setUnit(ui.unit);
+    if (ui.sort && SORT_KEYS.includes(ui.sort.key)) setSort(ui.sort);
+    /* eslint-enable react-hooks/set-state-in-effect */
+    requestAnimationFrame(() => window.scrollTo(0, ui.scrollY));
+  }, []);
+  useEffect(() => {
+    if (!restored.current) return;
+    const ui: Omit<UiState, "scrollY"> = {
+      version: UI_VERSION, kind, minMargin, minProfit, showConditional, budget, unit, sort,
+    };
+    writeSession("dashboard", { ...ui, scrollY: readSession<UiState>("dashboard")?.scrollY ?? 0 });
+  }, [kind, minMargin, minProfit, showConditional, budget, unit, sort]);
+
+  const open = (id: string, runs: number | undefined, newTab: boolean) => {
+    const url = opportunityHref(id, runs);
+    if (newTab) {
+      window.open(url, "_blank", "noopener");
+      return;
+    }
+    const ui = readSession<UiState>("dashboard");
+    if (ui) writeSession("dashboard", { ...ui, scrollY: window.scrollY });
+    router.push(url);
+  };
 
   const budgetChaos = useMemo(() => {
     const n = num(budget);
@@ -109,12 +139,10 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
       kind,
       showConditional,
       minMarginPct: num(minMargin),
-      minTotalProfit: num(minProfit),
-      minVolumeChaos: num(minVolume),
-      minListings: num(minListings),
+      minProfit: num(minProfit),
       budgetChaos,
     }),
-    [kind, showConditional, minMargin, minProfit, minVolume, minListings, budgetChaos],
+    [kind, showConditional, minMargin, minProfit, budgetChaos],
   );
 
   // Candidats filtrés sur les prix poe.ninja, triés par marge ninja : stable pendant les vérifications
@@ -132,9 +160,9 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
     () => ninjaRows.filter((o) => isVerifiable(o, payload)).slice(0, AUTO_VERIFY_COUNT).map((o) => o.id),
     [ninjaRows, payload],
   );
-  const { states: verif, verify } = useTradeVerification(autoIds);
+  const { states: verif } = useTradeVerification(autoIds, payload.fetchedAt);
 
-  // Lignes affichées : filtres de prix (marge, profit total, budget) appliqués aux valeurs effectives
+  // Lignes affichées : filtres de prix (marge, profit, budget) appliqués aux valeurs effectives
   // (trade vérifié si disponible, sinon ninja) → un faux positif vérifié disparaît, un sous-estimé apparaît.
   const rows = useMemo(() => {
     return payload.opportunities
@@ -144,18 +172,17 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
         const vr = v?.status === "done" && v.result.verified ? v.result.opportunity : undefined;
         const eff = vr ?? o;
         const plan = planFor(eff, filters.budgetChaos);
-        return { o, plan, vr, eff, loading: v?.status === "loading" };
+        return { o, plan, vr, eff, loading: v?.status === "loading", trade: tradeStatus(v, isVerifiable(o, payload)) };
       })
       .filter((r) => passesPrice(r.eff, r.plan, filters))
       .sort(compareRows(sort.key, sort.dir));
-  }, [payload.opportunities, filters, verif, sort]);
+  }, [payload, filters, verif, sort]);
 
   // Les navigateurs bloquent les onglets au-delà du premier par clic : on affiche une fenêtre de liens.
   const [linksFor, setLinksFor] = useState<string | null>(null);
   const openAll = (id: string) => setLinksFor(id);
   const linksRow = linksFor ? payload.opportunities.find((o) => o.id === linksFor) : undefined;
 
-  const selectedRow = selected ? rows.find((r) => r.o.id === selected) : undefined;
   const kinds = useMemo(() => [...new Set(payload.opportunities.map((o) => o.kind))], [payload.opportunities]);
   const s = payload.skipped;
   const c = payload.chainSkipped;
@@ -182,7 +209,7 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
         )}
       </header>
 
-      <section className="grid grid-cols-2 gap-3 rounded-lg border border-zinc-800 bg-zinc-900/60 p-4 sm:grid-cols-4 lg:grid-cols-8">
+      <section className="grid grid-cols-2 gap-3 rounded-lg border border-zinc-800 bg-zinc-900/60 p-4 sm:grid-cols-4 lg:grid-cols-6">
         <Field label="Type">
           <select className={inputCls} value={kind} onChange={(e) => setKind(e.target.value)}>
             <option value="all">Tous</option>
@@ -196,19 +223,8 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
         <Field label="Marge min (%)">
           <input className={inputCls} inputMode="decimal" value={minMargin} onChange={(e) => setMinMargin(e.target.value)} />
         </Field>
-        <Field label="Profit total min (c)">
+        <Field label="Profit min (c / run)">
           <input className={inputCls} inputMode="decimal" value={minProfit} onChange={(e) => setMinProfit(e.target.value)} />
-        </Field>
-        <Field label="Volume min (c, exchange)">
-          <input className={inputCls} inputMode="decimal" value={minVolume} onChange={(e) => setMinVolume(e.target.value)} />
-        </Field>
-        <Field label="Annonces min (stash)">
-          <input
-            className={inputCls}
-            inputMode="decimal"
-            value={minListings}
-            onChange={(e) => setMinListings(e.target.value)}
-          />
         </Field>
         <Field label="Budget (mode budget)">
           <div className="flex gap-1">
@@ -237,7 +253,7 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
       </section>
 
       <div className="overflow-x-auto rounded-lg border border-zinc-800">
-        <table className="w-full min-w-[60rem] text-left text-sm">
+        <table className="w-full min-w-[48rem] text-left text-sm">
           <thead className="bg-zinc-900 text-xs uppercase text-zinc-400">
             <tr>
               <SortTh k="margin" label="Marge" sort={sort} setSort={setSort} right />
@@ -245,26 +261,22 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
               <SortTh k="cost" label="Coût" sort={sort} setSort={setSort} right />
               <th className="px-3 py-2">Type</th>
               <th className="px-3 py-2">Opportunité</th>
-              <SortTh k="liquidity" label="Liquidité" sort={sort} setSort={setSort} right />
               <SortTh k="trend" label="7 j" sort={sort} setSort={setSort} right />
               <th className="whitespace-nowrap px-3 py-2">Trade</th>
-              <th
-                className="whitespace-nowrap px-3 py-2 text-right"
-                title={budgetChaos !== undefined ? "Runs max selon le budget et la liquidité" : "Runs max selon la liquidité (10 % du volume / annonces)"}
-              >
-                Runs
-              </th>
-              <SortTh k="total" label="Profit total" sort={sort} setSort={setSort} right />
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ o, plan, vr, eff, loading }) => {
+            {rows.map(({ o, plan, vr, eff, loading, trade }) => {
               const links = payload.tradeLinks[o.id] ?? [];
+              // Quantités de la liste de courses : celles du plan en mode budget, sinon 1 run.
+              const runs = budgetChaos !== undefined ? Math.max(1, plan.runs) : undefined;
               return (
               <tr
                 key={o.id}
-                onClick={() => setSelected(o.id === selected ? null : o.id)}
-                className={`cursor-pointer border-t border-zinc-800 hover:bg-zinc-800/60 ${o.id === selected ? "bg-zinc-800/80" : ""}`}
+                onClick={(e) => open(o.id, runs, e.ctrlKey || e.metaKey)}
+                onAuxClick={(e) => e.button === 1 && open(o.id, runs, true)}
+                title="Ouvrir la liste de courses (Ctrl+clic ou clic molette : nouvel onglet)"
+                className="cursor-pointer border-t border-zinc-800 hover:bg-zinc-800/60"
               >
                 <td className="px-3 py-2 text-right">
                   <div className={`font-semibold ${eff.marginPct > 0 ? "text-emerald-400" : "text-red-400"}`}>
@@ -288,8 +300,8 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
                   {o.unverified && <Badge cls="bg-sky-500/20 text-sky-300">[?] non vérifié</Badge>}
                   {vr && vr.profitChaos <= 0 && <Badge cls="bg-red-500/20 text-red-300">faux positif</Badge>}
                   {isOverestimated(o, vr) && <Badge cls="bg-orange-500/20 text-orange-300">surestimé</Badge>}
+                  <TradeBadge status={trade} />
                 </td>
-                <td className="whitespace-nowrap px-3 py-2 text-right text-zinc-400">{liqText(o)}</td>
                 <td className={`px-3 py-2 text-right ${(o.trendPct ?? 0) < 0 ? "text-red-400" : "text-zinc-300"}`}>
                   {o.trendPct === undefined ? "–" : `${o.trendPct > 0 ? "+" : ""}${fmt(o.trendPct)}%`}
                 </td>
@@ -308,16 +320,12 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
                     </button>
                   )}
                 </td>
-                <td className="px-3 py-2 text-right text-zinc-400">{plan.runs}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-right">
-                  {fmtProfit(plan.totalProfitChaos, divineChaos)}
-                </td>
               </tr>
               );
             })}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-3 py-6 text-center text-zinc-500">
+                <td colSpan={7} className="px-3 py-6 text-center text-zinc-500">
                   Aucune opportunité avec ces filtres.
                 </td>
               </tr>
@@ -325,20 +333,6 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
           </tbody>
         </table>
       </div>
-
-      {selectedRow && (
-        <OpportunityDetail
-          o={selectedRow.o}
-          runs={budgetChaos !== undefined ? Math.max(1, selectedRow.plan.runs) : 1}
-          budgetMode={budgetChaos !== undefined}
-          payload={payload}
-          verification={verif[selectedRow.o.id]}
-          links={payload.tradeLinks[selectedRow.o.id] ?? []}
-          verifiable={isVerifiable(selectedRow.o, payload)}
-          onVerify={() => verify(selectedRow.o.id)}
-          onClose={() => setSelected(null)}
-        />
-      )}
 
       {linksRow && (
         <TradeLinksModal

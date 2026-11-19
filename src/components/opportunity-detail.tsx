@@ -3,6 +3,7 @@ import type { DashboardPayload } from "@/lib/payload";
 import type { TradeLink } from "@/lib/trade/links";
 import type { VerifiedItem, VerifyResult } from "@/lib/trade/types";
 import { fmt, fmtProfit } from "./format";
+import { KIND_LABELS } from "./labels";
 import type { VerifyState } from "./verify";
 
 function where(o: Opportunity, vendors: Record<string, string>): string {
@@ -33,6 +34,15 @@ function ItemName({ i, links, role }: { i: PricedItem; links: TradeLink[]; role:
   );
 }
 
+function Stat({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <dt className="text-xs text-zinc-500">{label}</dt>
+      <dd className="text-base font-semibold text-zinc-100">{children}</dd>
+    </div>
+  );
+}
+
 function Threshold({ value, bad }: { value?: number; bad: boolean }) {
   if (bad || value === undefined || value <= 0) return <span className="text-red-400">non rentable</span>;
   return <>{fmt(value)}c</>;
@@ -47,28 +57,46 @@ export function OpportunityDetail({
   verifiable,
   links,
   onVerify,
-  onClose,
 }: {
   o: Opportunity;
   runs: number;
   budgetMode: boolean;
-  payload: DashboardPayload;
+  payload: Pick<DashboardPayload, "vendors" | "divineChaos">;
   verification?: VerifyState;
   verifiable: boolean;
   links: TradeLink[];
   onVerify: () => void;
-  onClose: () => void;
 }) {
   const unprofitable = o.profitChaos <= 0;
   const th = "px-2 py-1 text-left text-xs uppercase text-zinc-400";
+  const vr = verification?.status === "done" && verification.result.verified ? verification.result.opportunity : undefined;
+  const eff = vr ?? o;
   return (
-    <section className="rounded-lg border border-amber-500/40 bg-zinc-900 p-4 text-sm">
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <h2 className="font-semibold">Liste de courses : {o.label}</h2>
-        <button onClick={onClose} className="rounded border border-zinc-700 px-2 py-0.5 text-zinc-300 hover:bg-zinc-800">
-          Fermer
-        </button>
+    <section className="flex flex-col gap-4 text-sm">
+      <div className="rounded-lg border border-zinc-800 bg-zinc-900/60 p-4">
+        <p className="mb-1 text-xs uppercase text-zinc-500">{KIND_LABELS[o.kind]}</p>
+        <h2 className="mb-3 text-lg font-semibold text-zinc-100">{o.label}</h2>
+        <dl className="flex flex-wrap gap-x-8 gap-y-2">
+          <Stat label={vr ? "Marge (trade)" : "Marge"}>
+            <span className={eff.marginPct > 0 ? "text-emerald-400" : "text-red-400"}>
+              {eff.marginPct > 0 ? "+" : ""}
+              {fmt(eff.marginPct)}%
+            </span>
+            {vr && <span className="ml-2 text-xs text-zinc-500">ninja {fmt(o.marginPct)}%</span>}
+          </Stat>
+          <Stat label="Profit / run">{fmtProfit(eff.profitChaos, payload.divineChaos)}</Stat>
+          <Stat label="Coût / run">{fmt(eff.costChaos)}c</Stat>
+          {runs > 1 && <Stat label={`Profit (${runs} runs)`}>{fmtProfit(eff.profitChaos * runs, payload.divineChaos)}</Stat>}
+        </dl>
+        {(o.conditional || o.unverified) && (
+          <p className="mt-3 text-xs text-amber-300">
+            {o.conditional && "Opportunité conditionnelle. "}
+            {o.unverified && "Recette non vérifiée en jeu [?]."}
+          </p>
+        )}
       </div>
+      <div className="rounded-lg border border-amber-500/40 bg-zinc-900 p-4">
+      <h3 className="mb-2 font-semibold">Liste de courses</h3>
       <p className="mb-3 text-zinc-400">
         Où convertir : <span className="text-zinc-200">{where(o, payload.vendors)}</span>
         {" · "}Quantités pour {runs} run{runs > 1 ? "s" : ""}
@@ -147,6 +175,7 @@ export function OpportunityDetail({
         Prix seuils : au-delà, le profit tombe à 0 (les autres prix restant fixes). Currency : à acheter chez Faustus
         (Currency Exchange en jeu), pas de lien trade.
       </p>
+      </div>
     </section>
   );
 }

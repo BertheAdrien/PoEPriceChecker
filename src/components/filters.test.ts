@@ -2,16 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { Opportunity } from "@/lib/engine/types";
 import { num, passesPrice, passesStatic, planFor, type Filters } from "./filters";
 
-const base: Filters = {
-  kind: "all",
-  showConditional: false,
-  minMarginPct: 0,
-  minTotalProfit: 0,
-  minVolumeChaos: 0,
-  minListings: 0,
-};
+const base: Filters = { kind: "all", showConditional: false, minMarginPct: 0, minProfit: 0 };
 
-// 4 Fusing (0,1c, volume 80 000c) → 1 Scouring : 0,17c/run, plafond 10 % × 80 000 / 0,1 / 4 = 20 000 runs.
+// 4 Fusing (0,1c) → 1 Scouring : 0,17c/run.
 const cheap = {
   id: "cheap",
   kind: "vendor_shop",
@@ -23,7 +16,7 @@ const cheap = {
   liquidity: { minVolumeChaos: 80_000 },
 } as unknown as Opportunity;
 
-// Unique du stash : 50c/run, 3 annonces → 3 runs.
+// Carte : 50c/run, coût 250c.
 const stash = {
   id: "stash",
   kind: "div_card",
@@ -40,34 +33,26 @@ const passes = (o: Opportunity, f: Partial<Filters>) => {
   return passesStatic(o, ff) && passesPrice(o, planFor(o, ff.budgetChaos), ff);
 };
 
-describe("profit total min", () => {
-  it("sans budget : runs plafonnés par la liquidité", () => {
-    expect(planFor(cheap, undefined)).toMatchObject({ affordable: true, runs: 20_000 });
-    expect(passes(cheap, { minTotalProfit: 3000 })).toBe(true);
-    expect(passes(cheap, { minTotalProfit: 4000 })).toBe(false);
-    expect(passes(stash, { minTotalProfit: 150 })).toBe(true);
-    expect(passes(stash, { minTotalProfit: 151 })).toBe(false);
-  });
-  it("avec budget : runs plafonnés par le budget", () => {
-    // 10c → 25 runs × 0,17c = 4,25c
-    expect(passes(cheap, { budgetChaos: 10, minTotalProfit: 4 })).toBe(true);
-    expect(passes(cheap, { budgetChaos: 10, minTotalProfit: 5 })).toBe(false);
-  });
-  it("trop cher pour le budget → masqué", () => {
-    expect(passes(stash, { budgetChaos: 200 })).toBe(false);
+describe("profit min (par run, colonne Profit)", () => {
+  it("compare le profit par run", () => {
+    expect(passes(cheap, { minProfit: 0.1 })).toBe(true);
+    expect(passes(cheap, { minProfit: 1 })).toBe(false);
+    expect(passes(stash, { minProfit: 50 })).toBe(true);
+    expect(passes(stash, { minProfit: 51 })).toBe(false);
   });
   it("s'applique aux valeurs vérifiées (faux positif masqué)", () => {
     const verified = { ...stash, marginPct: -10, profitChaos: -25 } as Opportunity;
-    expect(passesPrice(verified, planFor(verified, undefined), { ...base, minTotalProfit: 1 })).toBe(false);
+    expect(passesPrice(verified, planFor(verified, undefined), base)).toBe(false);
   });
 });
 
-describe("liquidité", () => {
-  it("volume et annonces filtrés séparément", () => {
-    expect(passes(stash, { minVolumeChaos: 1_000_000 })).toBe(true);
-    expect(passes(stash, { minListings: 4 })).toBe(false);
-    expect(passes(cheap, { minListings: 1000 })).toBe(true);
-    expect(passes(cheap, { minVolumeChaos: 100_000 })).toBe(false);
+describe("budget", () => {
+  it("trop cher pour le budget → masqué", () => {
+    expect(passes(stash, { budgetChaos: 200 })).toBe(false);
+    expect(passes(stash, { budgetChaos: 250 })).toBe(true);
+  });
+  it("runs = budget / coût (quantités de la liste de courses)", () => {
+    expect(planFor(cheap, 10).runs).toBe(25);
   });
 });
 

@@ -2,9 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { Opportunity } from "@/lib/engine/types";
 import { compareRows, nextSort, type SortableRow } from "./sort";
 
-const row = (marginPct: number, extra: Partial<Opportunity> = {}, total?: number): SortableRow => ({
+const row = (marginPct: number, extra: Partial<Opportunity> = {}): SortableRow => ({
   eff: { marginPct, profitChaos: marginPct, costChaos: 100 - marginPct, liquidity: {}, ...extra } as Opportunity,
-  plan: total === undefined ? undefined : { totalProfitChaos: total },
 });
 
 describe("compareRows", () => {
@@ -18,9 +17,9 @@ describe("compareRows", () => {
     expect([...rs].sort(compareRows("trend", "desc")).map((r) => r.eff.marginPct)).toEqual([2, 3, 1]);
     expect([...rs].sort(compareRows("trend", "asc")).map((r) => r.eff.marginPct)).toEqual([3, 2, 1]);
   });
-  it("profit total du plan", () => {
-    const rs = [row(1, {}, 5), row(2, {}, 50)];
-    expect([...rs].sort(compareRows("total", "desc")).map((r) => r.eff.marginPct)).toEqual([2, 1]);
+  it("coût croissant", () => {
+    const rs = [row(10), row(50)];
+    expect([...rs].sort(compareRows("cost", "asc")).map((r) => r.eff.marginPct)).toEqual([50, 10]);
   });
 });
 

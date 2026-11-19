@@ -48,11 +48,15 @@ Cocher au fur et à mesure. Une étape = une session courte (`/clear` entre deux
 - [x] Corruption : entrées **non corrompues exigées par défaut** ; exceptions sourcées dans `data/recipe-overrides.yaml`
 
 ## Étape 4 bis — Corrections en cours (à traiter avant le déploiement)
-- [x] **Filtres cassés** (« profit total min » ne marchait pas) : il filtrait sur un profit total invisible hors mode budget
-      (0,17c/run × 14 000 runs de liquidité passait 1000c). Colonnes Runs / Profit total toujours affichées ; filtres extraits
-      dans `src/components/filters.ts` (testés) ; « Liquidité min » séparée en « Volume min (c) » et « Annonces min »
-- [x] Mode budget, marge min et profit total min appliqués aux prix trade **vérifiés** quand disponibles (les autoIds restent
-      choisis sur les prix ninja pour éviter une cascade de vérifications)
+- [x] **Filtres** (« profit total min » filtrait sur une valeur invisible) : simplifiés à la demande de l'utilisateur
+      (2026-11-19) → Type, Marge min, **Profit min par run** (= colonne Profit), Budget, conditionnelles. Colonnes Liquidité,
+      Runs et Profit total retirées (jugées inutiles). Filtres de prix appliqués aux valeurs trade **vérifiées** si disponibles
+      (autoIds choisis sur les prix ninja pour éviter une cascade). Logique dans `src/components/filters.ts` (testée).
+- [x] **Liste de courses = page dédiée** `/opportunite?id=…&runs=…` (même onglet ; Ctrl+clic / molette = nouvel onglet) ;
+      filtres, tri, défilement et vérifications conservés dans l'onglet (`sessionStorage`, vérifs invalidées si les prix changent) ;
+      vérification trade automatique à l'ouverture ; cartouche d'état trade par ligne (à vérifier / en cours / ✓ / échec)
+- [ ] Flesh of Xesht sur un Dream corrompu : l'utilisateur pense que c'est accepté ; le wiki ne le dit pas (seule mention :
+      refusé sur Skin of the Lords, toujours corrompu). En attente d'un test en jeu (et : la sortie est-elle corrompue ?)
 - [ ] Recettes vendeur d'uniques dont l'acceptation des corrompus est inconnue (Lost Unity, Magna Eclipsis, Arborix, Goddess Scorned) :
       à tester en jeu ; Kingmaker/Duskdawn sont classées `other` alors que ce sont des recettes vendeur (classification wiki à affiner)
 - [x] Avertissements Turbopack (lectures `fs`) : `/*turbopackIgnore: true*/`, `data/` copié explicitement dans l'image

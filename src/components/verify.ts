@@ -5,6 +5,7 @@ import type { Opportunity } from "@/lib/engine/types";
 import type { DashboardPayload } from "@/lib/payload";
 import { isFoulborn } from "@/lib/trade/query";
 import type { VerifyResult } from "@/lib/trade/types";
+import { readSession, writeSession } from "./session";
 
 export type VerifyState =
   | { status: "loading" }
@@ -12,22 +13,39 @@ export type VerifyState =
   | { status: "error"; message: string };
 
 /** Au moins un item du stash (lien trade connu) hors Foulborn : vérifiable sur le trade. */
-export function isVerifiable(o: Opportunity, payload: DashboardPayload): boolean {
+export function isVerifiable(o: Opportunity, payload: Pick<DashboardPayload, "trade">): boolean {
   return [...o.inputs, ...o.outputs].some((i) => payload.trade[i.item] && !isFoulborn(i.item));
 }
 
 export const AUTO_VERIFY_COUNT = 10;
+
+/** État de vérification affiché en cartouche ; "none" = rien à vérifier (currency, cartes…). */
+export type TradeStatus = "none" | "pending" | "checking" | "verified" | "no_data" | "error";
+
+export function tradeStatus(v: VerifyState | undefined, verifiable: boolean): TradeStatus {
+  if (!verifiable) return "none";
+  if (!v) return "pending";
+  if (v.status === "loading") return "checking";
+  if (v.status === "error") return "error";
+  return v.result.verified ? "verified" : "no_data";
+}
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
  * Vérifications trade, une à la fois (file séquentielle, jamais en parallèle). `autoIds` = ids à
  * vérifier automatiquement (dans l'ordre) ; `verify(id)` ajoute une vérification manuelle.
+ * Les résultats sont partagés entre les pages de l'onglet (sessionStorage), tant que les données
+ * poe.ninja (`fetchedAt`) sont les mêmes.
  */
-export function useTradeVerification(autoIds: string[]) {
+export function useTradeVerification(autoIds: string[], fetchedAt: string) {
   const [states, setStates] = useState<Record<string, VerifyState>>({});
   const chain = useRef<Promise<void>>(Promise.resolve());
   const wanted = useRef<Set<string>>(new Set());
   const queued = useRef<Set<string>>(new Set());
+  const fetchedAtRef = useRef(fetchedAt);
+  useEffect(() => {
+    fetchedAtRef.current = fetchedAt;
+  }, [fetchedAt]);
 
   const enqueue = useCallback((id: string, manual: boolean) => {
     const setState = (s: VerifyState | undefined) =>
@@ -58,6 +76,9 @@ export function useTradeVerification(autoIds: string[]) {
         const body = await res.json();
         if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
         setState({ status: "done", result: body as VerifyResult });
+        // Écrit directement (et non via l'état) : le résultat est conservé même si la page a été quittée.
+        const fa = fetchedAtRef.current;
+        writeSession("verifications", { ...readSession<Record<string, VerifyResult>>("verifications", fa), [id]: body }, fa);
       } catch (e) {
         queued.current.delete(id);
         setState({ status: "error", message: e instanceof Error ? e.message : String(e) });
@@ -65,11 +86,28 @@ export function useTradeVerification(autoIds: string[]) {
     });
   }, []);
 
+  // Restaure les vérifications déjà faites (avant l'effet des autoIds : elles ne sont pas refaites).
+  useEffect(() => {
+    const saved = readSession<Record<string, VerifyResult>>("verifications", fetchedAt) ?? {};
+    for (const id of Object.keys(saved)) queued.current.add(id);
+    if (Object.keys(saved).length === 0) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sessionStorage n'existe qu'après l'hydratation
+    setStates((prev) => {
+      const next = { ...prev };
+      for (const [id, result] of Object.entries(saved)) next[id] ??= { status: "done", result };
+      return next;
+    });
+  }, [fetchedAt]);
+
   const key = autoIds.join("|");
   useEffect(() => {
     const ids = key ? key.split("|") : [];
     wanted.current = new Set(ids);
     for (const id of ids) enqueue(id, false);
+    // Page quittée ou autre sélection : les vérifications automatiques encore en file sont abandonnées.
+    return () => {
+      wanted.current = new Set();
+    };
   }, [key, enqueue]);
 
   const verify = useCallback((id: string) => enqueue(id, true), [enqueue]);

@@ -1,13 +1,12 @@
 import type { Opportunity } from "@/lib/engine/types";
 
-export type SortKey = "margin" | "profit" | "cost" | "liquidity" | "trend" | "total";
+export const SORT_KEYS = ["margin", "profit", "cost", "trend"] as const;
+export type SortKey = (typeof SORT_KEYS)[number];
 export type SortDir = "desc" | "asc";
 
 export interface SortableRow {
   /** Opportunité effective (vérifiée si disponible, sinon poe.ninja). */
   eff: Opportunity;
-  /** Trend 7 j de l'opportunité poe.ninja. */
-  plan?: { totalProfitChaos: number };
 }
 
 /** Valeur de tri d'une ligne ; undefined = inconnue (toujours classée en dernier). */
@@ -19,12 +18,8 @@ export function sortValue(r: SortableRow, key: SortKey): number | undefined {
       return r.eff.profitChaos;
     case "cost":
       return r.eff.costChaos;
-    case "liquidity":
-      return r.eff.liquidity.minVolumeChaos ?? r.eff.liquidity.minListings;
     case "trend":
       return r.eff.trendPct;
-    case "total":
-      return r.plan?.totalProfitChaos;
   }
 }
 
