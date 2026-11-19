@@ -5,6 +5,7 @@ import { liquidityRunCap, planBudget } from "@/lib/engine/budget";
 import type { Opportunity, OpportunityKind } from "@/lib/engine/types";
 import type { DashboardPayload } from "@/lib/payload";
 import { OpportunityDetail } from "./opportunity-detail";
+import { TradeLinksModal } from "./trade-links-modal";
 import { AUTO_VERIFY_COUNT, isVerifiable, useTradeVerification } from "./verify";
 import { fmt, fmtProfit } from "./format";
 import { compareRows, nextSort, type SortDir, type SortKey } from "./sort";
@@ -145,12 +146,10 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
       .sort(compareRows(sort.key, sort.dir));
   }, [ninjaRows, verif, budgetChaos, sort]);
 
-  const openAll = (id: string, links: { url: string }[]) => {
-    let blocked = false;
-    for (const l of links) if (!window.open(l.url, "_blank")) blocked = true;
-    // Pop-ups bloquées : le panneau de détail liste les liens à cliquer un par un.
-    if (blocked) setSelected(id);
-  };
+  // Les navigateurs bloquent les onglets au-delà du premier par clic : on affiche une fenêtre de liens.
+  const [linksFor, setLinksFor] = useState<string | null>(null);
+  const openAll = (id: string) => setLinksFor(id);
+  const linksRow = linksFor ? payload.opportunities.find((o) => o.id === linksFor) : undefined;
 
   const selectedRow = selected ? rows.find((r) => r.o.id === selected) : undefined;
   const kinds = useMemo(() => [...new Set(payload.opportunities.map((o) => o.kind))], [payload.opportunities]);
@@ -283,12 +282,12 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        openAll(o.id, links);
+                        openAll(o.id);
                       }}
                       title={links.map((l) => l.label).join("\n")}
                       className="whitespace-nowrap rounded border border-amber-500/60 px-1.5 py-0.5 text-[11px] text-amber-300 hover:bg-zinc-800"
                     >
-                      Ouvrir tout ↗
+                      Liens trade ↗
                     </button>
                   )}
                 </td>
@@ -323,6 +322,14 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
           verifiable={isVerifiable(selectedRow.o, payload)}
           onVerify={() => verify(selectedRow.o.id)}
           onClose={() => setSelected(null)}
+        />
+      )}
+
+      {linksRow && (
+        <TradeLinksModal
+          title={linksRow.label}
+          links={payload.tradeLinks[linksRow.id] ?? []}
+          onClose={() => setLinksFor(null)}
         />
       )}
     </div>
