@@ -51,12 +51,15 @@ function SortTh({
   const active = sort.key === k;
   return (
     <th
-      className={`cursor-pointer select-none px-3 py-2 hover:text-zinc-200 ${right ? "text-right" : ""} ${active ? "text-amber-300" : ""}`}
+      className={`cursor-pointer select-none whitespace-nowrap px-3 py-2 hover:text-zinc-200 ${right ? "text-right" : ""} ${active ? "text-amber-300" : ""}`}
       onClick={() => setSort(nextSort(sort, k))}
       aria-sort={active ? (sort.dir === "desc" ? "descending" : "ascending") : "none"}
     >
       {label}
-      {active && (sort.dir === "desc" ? " ▼" : " ▲")}
+      {/* Flèche toujours présente (invisible si inactive) : pas de saut de largeur ni de retour à la ligne. */}
+      <span className={`ml-1 inline-block w-2 text-[0.65rem] ${active ? "" : "invisible"}`} aria-hidden>
+        {active && sort.dir === "asc" ? "▲" : "▼"}
+      </span>
     </th>
   );
 }
@@ -233,7 +236,7 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
               <th className="px-3 py-2">Opportunité</th>
               <SortTh k="liquidity" label="Liquidité" sort={sort} setSort={setSort} right />
               <SortTh k="trend" label="7 j" sort={sort} setSort={setSort} right />
-              <th className="px-3 py-2">Liens trade</th>
+              <th className="whitespace-nowrap px-3 py-2">Trade</th>
               {budgetChaos !== undefined && <th className="px-3 py-2 text-right">Runs</th>}
               {budgetChaos !== undefined && <SortTh k="total" label="Profit total" sort={sort} setSort={setSort} right />}
             </tr>
@@ -275,29 +278,18 @@ export function Dashboard({ payload }: { payload: DashboardPayload }) {
                   {o.trendPct === undefined ? "–" : `${o.trendPct > 0 ? "+" : ""}${fmt(o.trendPct)}%`}
                 </td>
                 <td className="px-3 py-2">
+                  {/* Un seul bouton ; le détail des liens par item est dans la liste de courses. */}
                   {links.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                      {links.map((l) => (
-                        <a
-                          key={`${l.role}-${l.item}`}
-                          href={l.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          title={l.label}
-                          className="max-w-[11rem] truncate rounded border border-zinc-700 px-1.5 py-0.5 text-[11px] text-amber-400 hover:bg-zinc-800"
-                        >
-                          {l.label} ↗
-                        </a>
-                      ))}
-                      {links.length > 1 && (
-                        <button
-                          onClick={() => openAll(o.id, links)}
-                          className="rounded border border-amber-500/60 px-1.5 py-0.5 text-[11px] text-amber-300 hover:bg-zinc-800"
-                        >
-                          Ouvrir tout
-                        </button>
-                      )}
-                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openAll(o.id, links);
+                      }}
+                      title={links.map((l) => l.label).join("\n")}
+                      className="whitespace-nowrap rounded border border-amber-500/60 px-1.5 py-0.5 text-[11px] text-amber-300 hover:bg-zinc-800"
+                    >
+                      Ouvrir tout ↗
+                    </button>
                   )}
                 </td>
                 {plan && <td className="px-3 py-2 text-right">{plan.runs}</td>}
